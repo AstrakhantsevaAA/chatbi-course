@@ -20,12 +20,12 @@ LIBRARY = "(SELECT track_sk FROM fact_saved_track UNION SELECT track_sk FROM fac
 WEEK = "fact_play.played_at >= DATE_TRUNC('week', CURRENT_DATE)"
 
 CASES = [
-    {"q": "How many songs by Bad Omens do I have in my library?", "status": "answered",
+    {"q": "How many songs by {top_artist} do I have in my library?", "status": "answered",
      "metric": "library_songs",
      "sql": f"""SELECT COUNT(DISTINCT t.track_sk) FROM dim_track t
                 JOIN bridge_track_artist b ON b.track_sk = t.track_sk
                 JOIN dim_artist a ON a.artist_sk = b.artist_sk
-                WHERE t.track_sk IN {LIBRARY} AND a.artist_name = 'Bad Omens'"""},
+                WHERE t.track_sk IN {LIBRARY} AND a.artist_name = '{{top_artist}}'"""},
     {"q": "How many liked songs do I have?", "status": "answered", "metric": "saved_tracks",
      "sql": "SELECT COUNT(*) FROM fact_saved_track"},
     {"q": "How many albums have I saved?", "status": "answered", "metric": "saved_albums",
@@ -58,6 +58,19 @@ def metric_sql(name: str) -> str:
 
     row = next(m for m in gate.load_ison_section("nodes.Metric") if m["name"] == name)
     return f"SELECT {row['expression']} FROM {row['table']} WHERE {row['filters'] or 'TRUE'}"
+
+
+TOP_ARTIST_SQL = f"""SELECT a.artist_name FROM bridge_track_artist b
+    JOIN dim_artist a ON a.artist_sk = b.artist_sk WHERE b.track_sk IN {LIBRARY}
+    GROUP BY 1 ORDER BY COUNT(DISTINCT b.track_sk) DESC, 1 LIMIT 1"""
+
+
+def top_artist() -> str:
+    """Return the artist with the most songs in my library, so no name is hard-coded."""
+    sys.path.insert(0, str(ROOT))
+    from destinations import cdm_dataset
+
+    return cdm_dataset()(TOP_ARTIST_SQL).fetchone()[0]
 
 
 def expected_value(sql: str | None) -> float | None:
@@ -101,9 +114,12 @@ def main() -> int:
     picked = [(i, c) for i, c in enumerate(CASES, 1) if not parser.parse_args().only
               or i in parser.parse_args().only]
     passed, total_cost = 0, 0.0
+    artist = top_artist() if any("{top_artist}" in c["q"] for _, c in picked) else ""
     for i, case in picked:
-        want = expected_value(case["sql"])
-        log, cost = ask(case["q"])
+        question = case["q"].replace("{top_artist}", artist)
+        sql = case["sql"].replace("{top_artist}", artist.replace("'", "''")) if case["sql"] else None
+        want = expected_value(sql)
+        log, cost = ask(question)
         total_cost += cost
         problems = []
         if log.get("status") != case["status"]:

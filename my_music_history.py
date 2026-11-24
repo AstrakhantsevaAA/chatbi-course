@@ -500,7 +500,7 @@ def _(mo):
     chat = mo.ui.chat(
         _ask,
         prompts=[
-            "How many songs by Bad Omens do I have in my library?",
+            "How many songs by my top artist do I have in my library?",
             "Which artist has the most songs in my library?",
             "How many albums have I saved, and by whom?",
             "Which artists did I play most this week?",
