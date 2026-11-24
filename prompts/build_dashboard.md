@@ -25,7 +25,7 @@ SECTIONS (in this order)
    - Top 15 artists in my library: distinct songs that are liked OR in my playlists,
      stacked as "liked" / "only in my playlists", sorted by the total.
    - New artists per year (year of the first liked song per artist).
-   - Table: top 3 artists of each year by songs liked that year.
+   - Table: top 3 artists of each year by songs liked that year, newest year first.
 3. What era I live in
    - Liked songs by release decade.
    - Heatmap: year liked x release decade.

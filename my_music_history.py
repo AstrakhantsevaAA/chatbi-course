@@ -195,7 +195,7 @@ def _(dataset, mo):
           SELECT EXTRACT(YEAR FROM s.added_at) AS year, a.artist_name, COUNT(DISTINCT s.track_sk) AS liked_songs
           FROM fact_saved_track s JOIN bridge_track_artist b ON s.track_sk = b.track_sk JOIN dim_artist a ON b.artist_sk = a.artist_sk GROUP BY 1, 2),
         ranked AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY year ORDER BY liked_songs DESC, artist_name) AS rn FROM yearly)
-        SELECT CAST(year AS VARCHAR) AS year, artist_name, liked_songs, rn AS rank FROM ranked WHERE rn <= 3 ORDER BY year, rn
+        SELECT CAST(year AS VARCHAR) AS year, artist_name, liked_songs, rn AS rank FROM ranked WHERE rn <= 3 ORDER BY year DESC, rn
     """).df()
     mo.vstack([mo.md("**Top 3 artists of each year (by songs liked that year)**"), mo.ui.table(_t, selection=None)])
     return
