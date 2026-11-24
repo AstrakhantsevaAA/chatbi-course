@@ -243,7 +243,8 @@ def listening_activity_to_cdm(dataset: dlt.Dataset):
 
 def main() -> None:
     os.chdir(ROOT)
-    source = dlt.attach(pipeline_name="spotify_pipeline")
+    # Pass destination and dataset: a platform run has no local pipeline state.
+    source = dlt.attach("spotify_pipeline", destination=DESTINATION, dataset_name="spotify_raw")
     cdm = dlt.pipeline(
         # The pipeline name sets the DuckDB file; it must differ from the dataset name.
         pipeline_name="listening_activity_cdm",

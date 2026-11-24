@@ -22,7 +22,6 @@ class FakeSpotify(BaseHTTPRequestHandler):
     """Serve canned Spotify responses and record the query strings it sees."""
 
     requests_seen: list[str] = []
-    posted: list[tuple[str, Any]] = []
 
     def _send(self, status: int, body: Any) -> None:
         payload = json.dumps(body).encode()
@@ -32,17 +31,7 @@ class FakeSpotify(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def do_POST(self) -> None:
-        length = int(self.headers.get("Content-Length", 0))
-        raw = self.rfile.read(length).decode()
-        path = urllib.parse.urlparse(self.path).path.removeprefix("/v1/")
-        if path == "me/playlists":
-            FakeSpotify.posted.append((path, json.loads(raw)))
-            self._send(201, {"id": "new_pl"})
-        elif path.startswith("playlists/"):
-            FakeSpotify.posted.append((path, json.loads(raw)))
-            self._send(201, {"snapshot_id": "snap"})
-        else:
-            self._send(200, {"access_token": "fake", "expires_in": 3600})
+        self._send(200, {"access_token": "fake", "expires_in": 3600})
 
     def do_GET(self) -> None:
         url = urllib.parse.urlparse(self.path)

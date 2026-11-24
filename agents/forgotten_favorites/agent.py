@@ -1,4 +1,4 @@
-"""Hooks for the forgotten_favorites agent: rows in before the loop, draft out after it."""
+"""Hook for the forgotten_favorites agent: loads candidate rows before the loop."""
 
 from datetime import date
 from typing import Any, Dict
@@ -41,15 +41,3 @@ def validate_input(inputs: Dict[str, Any]) -> Dict[str, Any]:
         raise JobAbortedException("No forgotten favorites this week", {"status": "aborted"})
     year, week, _ = date.today().isocalendar()
     return {**inputs, "week": f"{year}-W{week:02d}", "candidates": render(rows)}
-
-
-def validate_output(output: Dict[str, Any]) -> Dict[str, Any]:
-    if output.get("status") == "aborted" or not output.get("tracks"):
-        return output
-    import actions
-
-    draft_id = actions.store_draft(
-        {"name": output["playlist_name"], "description": "Drafted by the forgotten_favorites agent",
-         "tracks": output["tracks"]}
-    )
-    return {**output, "summary": f"{output['summary']}\n\nStored as draft `{draft_id}` for review."}

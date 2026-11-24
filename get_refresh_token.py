@@ -25,7 +25,6 @@ SCOPES = [
     "user-library-read",
     "playlist-read-private",
     "playlist-read-collaborative",
-    "playlist-modify-private",
 ]
 
 

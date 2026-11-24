@@ -1,9 +1,9 @@
-"""ChatBI course — Spotify listening data, report app, and a weekly drafting agent."""
+"""ChatBI course — Spotify listening data, report app, and a weekly agent."""
 
 from dlt.hub import run
 
 import listening_activity_cdm_dashboard
-from listening_jobs import build_cdm, ingest, review_proposal, run_approved_actions
+from listening_jobs import build_cdm, ingest
 
 forgotten_favorites = run.agent(
     "agents/forgotten_favorites",
@@ -12,11 +12,4 @@ forgotten_favorites = run.agent(
     require={"profile": "access"},
 )
 
-__all__ = [
-    "ingest",
-    "build_cdm",
-    "listening_activity_cdm_dashboard",
-    "forgotten_favorites",
-    "review_proposal",
-    "run_approved_actions",
-]
+__all__ = ["ingest", "build_cdm", "listening_activity_cdm_dashboard", "forgotten_favorites"]
