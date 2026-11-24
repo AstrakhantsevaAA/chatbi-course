@@ -13,7 +13,7 @@ questions about your listening through a semantic layer.
 | 1. Load Spotify into your warehouse | ✅ real data, deployed | `get_refresh_token.py`, `spotify_pipeline.py` |
 | 2. Generate the ontology with the AI Harness | ✅ real data, deployed | `.schema/listening_activity/`, `transformations/` |
 | 3. Roles and metrics | ✅ 61 roles, 7 metrics verified | `course_skills/annotate-column-roles`, `course_skills/add-metrics` |
-| 4. Report app | ✅ deployed as a dltHub data app | `listening_activity_cdm_dashboard.py` |
+| 4. Report apps | ✅ deployed as dltHub data apps | `my_music_history.py` (years of library data), `listening_activity_cdm_dashboard.py` (recent listening) |
 | 5. The answering agent | ✅ 10/10 headless Claude Code runs | `course_skills/answer-question`, `gate.py`, `.claude/settings.json` |
 | 6. Deploy and a weekly agent | ✅ on dltHub | `__deployment__.py`, `listening_jobs.py`, `agents/forgotten_favorites/` |
 

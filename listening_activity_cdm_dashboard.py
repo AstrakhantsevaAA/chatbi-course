@@ -37,7 +37,7 @@ def _(dataset, mo):
             (SELECT MAX(played_at) FROM fact_play) AS data_through
     """).df().iloc[0]
     mo.vstack([
-        mo.md("# My listening report"),
+        mo.md("# Recent listening (since the first load)"),
         mo.hstack([
             mo.stat(value=f"{_kpi.plays:,}", label="Plays"),
             mo.stat(value=f"{_kpi.listening_minutes:,.0f}", label="Listening minutes"),
