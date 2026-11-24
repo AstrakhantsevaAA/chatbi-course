@@ -35,6 +35,18 @@ def iso_to_unix_ms(value: str) -> int:
     return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1000)
 
 
+NOISE_KEYS = {"images", "available_markets", "video_thumbnail", "primary_color"}
+
+
+def strip_noise(value: Any) -> Any:
+    """Drop image and market fields that only add tables to the schema."""
+    if isinstance(value, dict):
+        return {k: strip_noise(v) for k, v in value.items() if k not in NOISE_KEYS}
+    if isinstance(value, list):
+        return [strip_noise(v) for v in value]
+    return value
+
+
 def with_track_id(row: dict[str, Any]) -> dict[str, Any]:
     """Lift the nested track id to the top level so it can be a key."""
     track = row.get("track") or row.get("item") or {}
@@ -71,14 +83,18 @@ def spotify_source(
                         "convert": iso_to_unix_ms,
                     },
                 },
-                "processing_steps": [{"map": with_track_id}],
+                "processing_steps": [{"map": strip_noise}, {"map": with_track_id}],
             },
             {
                 "name": "saved_tracks",
                 "endpoint": {"path": "me/tracks"},
-                "processing_steps": [{"map": with_track_id}],
+                "processing_steps": [{"map": strip_noise}, {"map": with_track_id}],
             },
-            {"name": "playlists", "endpoint": {"path": "me/playlists"}},
+            {
+                "name": "playlists",
+                "endpoint": {"path": "me/playlists"},
+                "processing_steps": [{"map": strip_noise}],
+            },
             {
                 "name": "playlist_items",
                 "include_from_parent": ["id"],
@@ -89,7 +105,7 @@ def spotify_source(
                         {"status_code": 404, "action": "ignore"},
                     ],
                 },
-                "processing_steps": [{"map": with_track_id}],
+                "processing_steps": [{"map": strip_noise}, {"map": with_track_id}],
             },
         ],
     }
@@ -111,7 +127,7 @@ def top_items(auth: OAuth2ClientCredentials) -> Iterator[dict[str, Any]]:
             response = client.get(f"me/top/{item_type}", params={"time_range": time_range, "limit": 50})
             for rank, item in enumerate(response.json()["items"], start=1):
                 yield {
-                    **item,
+                    **strip_noise(item),
                     "snapshot_date": snapshot_date,
                     "item_type": item_type,
                     "time_range": time_range,
