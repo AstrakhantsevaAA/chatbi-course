@@ -1,7 +1,7 @@
-"""Log in to Spotify once and save a refresh token to .dlt/secrets.toml.
+"""Log in to Spotify once and save a refresh token to .dlt/dev.secrets.toml.
 
 Run `uv run python get_refresh_token.py` after you put client_id and
-client_secret under [sources.spotify] in .dlt/secrets.toml. It opens the
+client_secret under [sources.spotify] in .dlt/dev.secrets.toml. It opens the
 Spotify login page, catches the redirect on 127.0.0.1:8888, and writes the
 refresh token. The token value is never printed.
 """
@@ -18,7 +18,7 @@ import requests
 import tomlkit
 
 REDIRECT_URI = "http://127.0.0.1:8888/callback"
-SECRETS_PATH = Path(".dlt/secrets.toml")
+SECRETS_PATH = Path(".dlt/dev.secrets.toml")
 SCOPES = [
     "user-read-recently-played",
     "user-top-read",
