@@ -476,5 +476,43 @@ def _(alt, df_r3):
     return
 
 
+@app.cell
+def _(mo):
+    import chatbi
+
+    _turns = []
+
+    def _ask(messages, config):
+        """Answer the newest chat message with the plan, gate, answer loop."""
+        try:
+            turn = chatbi.ask(messages[-1].content, _turns)
+        except Exception as error:  # noqa: BLE001
+            return f"Sorry, I could not answer: {error}"
+        _turns.append(turn)
+        parts = [mo.md(turn.answer)]
+        if turn.rows is not None and len(turn.rows):
+            parts.append(mo.ui.table(turn.rows.head(chatbi.MAX_ROWS_SHOWN), selection=None))
+        if turn.sql:
+            parts.append(mo.accordion({"SQL (passed the gate)": mo.md(f"```sql\n{turn.sql}\n```")}))
+        return mo.vstack(parts)
+
+    chat = mo.ui.chat(
+        _ask,
+        prompts=[
+            "How many songs by Bad Omens do I have in my library?",
+            "Which artist has the most songs in my library?",
+            "How many albums have I saved, and by whom?",
+            "Which artists did I play most this week?",
+        ],
+    )
+    mo.vstack([
+        mo.md("## Ask my music data"),
+        mo.md("Questions run through the same plan → gate → read-only SQL loop as the "
+              "answering agent. Every answer shows the SQL that ran."),
+        chat,
+    ])
+    return
+
+
 if __name__ == "__main__":
     app.run()

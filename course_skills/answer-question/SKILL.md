@@ -54,6 +54,19 @@ Rules:
 - `group_by` uses `table.column` with role `dimension`, `time_dimension`, or `label`.
 - To filter on a `dimension` value you have not seen, first read its values (at most 3 probes):
   `SELECT <col>, COUNT(*) FROM <table> GROUP BY 1 ORDER BY 2 DESC LIMIT 20`.
+- Time words have one meaning each. Write the one you used in `assumptions`:
+
+  | The user says | Filter (DuckDB) |
+  |---|---|
+  | today | `>= CURRENT_DATE` |
+  | this week | `>= DATE_TRUNC('week', CURRENT_DATE)` (calendar week, from Monday) |
+  | last 7 days, past week | `>= CURRENT_DATE - INTERVAL '7' DAY` |
+  | this month / this year | `>= DATE_TRUNC('month' / 'year', CURRENT_DATE)` |
+  | last 30 days | `>= CURRENT_DATE - INTERVAL '30' DAY` |
+  | no time word | all data; say which period the data covers |
+
+- "Library" means liked songs plus tracks in playlists I own or collaborate on (`library_songs`).
+  Liked songs alone are "liked songs". Followed playlists have no tracks in the data.
 
 ```bash
 uv run python gate.py check-plan .chatbi/plan.json
@@ -65,6 +78,8 @@ If REJECTED, fix the plan once with the reasons. If it is still REJECTED, tell t
 
 Write `.chatbi/query.sql`. Use metric expressions and filters **verbatim**. Join facts to dimensions
 on `*_sk`, and to artists through `bridge_track_artist`. Add `LIMIT` (at most 200).
+For rankings, break ties by name: `ORDER BY <metric> DESC, <label>`. If the last row of a top N
+ties with rows below it, say so in the answer.
 
 ```bash
 uv run python gate.py check-sql .chatbi/query.sql
@@ -90,8 +105,9 @@ Reply in this order:
 4. The SQL in a `sql` block.
 5. Assumptions, including data limits (play history starts at the first load).
 
-Append one line to `answers_log.jsonl`:
+Append one line to `answers_log.jsonl`. `value` is the headline number of the answer (the first
+row's metric value for a ranking), or `null` when there is no number:
 
 ```json
-{"question": "...", "status": "answered | clarified | out_of_scope | rejected", "metric": "...", "sql": "...", "rows": 0}
+{"question": "...", "status": "answered | clarified | out_of_scope | rejected", "metric": "...", "value": 0, "sql": "...", "rows": 0}
 ```
