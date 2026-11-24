@@ -1,0 +1,99 @@
+{
+  "_version": "1.0",
+  "_name": "listening_activity",
+  "Track": {
+    "description": "A song (or podcast episode) on Spotify, identified by its Spotify track id",
+    "use_cases": ["what I listen to", "what I save and forget", "how my playlists grow", "how my taste changes"],
+    "references": ["song", "item", "tune"],
+    "tables": [
+      {"table": "plays", "source_pipeline": "spotify_pipeline", "role": "secondary", "columns_prefix": "track__"},
+      {"table": "saved_tracks", "source_pipeline": "spotify_pipeline", "role": "secondary", "columns_prefix": "track__"},
+      {"table": "playlist_items", "source_pipeline": "spotify_pipeline", "role": "secondary", "columns_prefix": "item__"},
+      {"table": "top_items", "source_pipeline": "spotify_pipeline", "role": "secondary", "filter": "item_type = 'tracks'"}
+    ],
+    "natural_key": "track id (plays.track_id, saved_tracks.track_id, playlist_items.track_id, top_items.id)",
+    "assumptions": [
+      "No source table holds tracks on their own; track attributes are embedded in every event table",
+      "Local files in playlists have no track id and cannot be matched"
+    ]
+  },
+  "Artist": {
+    "description": "A performer credited on a track or an album",
+    "use_cases": ["what I listen to", "how my taste changes"],
+    "references": ["band", "singer", "musician"],
+    "tables": [
+      {"table": "plays__track__artists", "source_pipeline": "spotify_pipeline", "role": "secondary"},
+      {"table": "saved_tracks__track__artists", "source_pipeline": "spotify_pipeline", "role": "secondary"},
+      {"table": "playlist_items__item__artists", "source_pipeline": "spotify_pipeline", "role": "secondary"},
+      {"table": "top_items__artists", "source_pipeline": "spotify_pipeline", "role": "secondary"},
+      {"table": "top_items", "source_pipeline": "spotify_pipeline", "role": "secondary", "filter": "item_type = 'artists'"}
+    ],
+    "natural_key": "artist id",
+    "assumptions": ["Spotify returns no genres or popularity for Development Mode apps, so Artist has only id and name"]
+  },
+  "Album": {
+    "description": "The release a track belongs to",
+    "use_cases": ["what I listen to"],
+    "references": ["record", "release", "single", "EP"],
+    "tables": [
+      {"table": "plays", "source_pipeline": "spotify_pipeline", "role": "secondary", "columns_prefix": "track__album__"},
+      {"table": "saved_tracks", "source_pipeline": "spotify_pipeline", "role": "secondary", "columns_prefix": "track__album__"},
+      {"table": "playlist_items", "source_pipeline": "spotify_pipeline", "role": "secondary", "columns_prefix": "item__album__"},
+      {"table": "top_items", "source_pipeline": "spotify_pipeline", "role": "secondary", "columns_prefix": "album__"}
+    ],
+    "natural_key": "album id",
+    "assumptions": ["release_date has mixed precision (year, month, or day); see release_date_precision"]
+  },
+  "Playlist": {
+    "description": "A playlist in my library, owned by me or by someone else",
+    "use_cases": ["how my playlists grow"],
+    "references": ["list", "mix"],
+    "tables": [{"table": "playlists", "source_pipeline": "spotify_pipeline", "role": "primary"}],
+    "natural_key": "id",
+    "assumptions": ["Item lists exist only for playlists I own or collaborate on"]
+  },
+  "PlaylistItem": {
+    "description": "A track added to one of my playlists, with when and by whom",
+    "use_cases": ["how my playlists grow"],
+    "references": ["playlist entry", "added track"],
+    "tables": [{"table": "playlist_items", "source_pipeline": "spotify_pipeline", "role": "primary"}],
+    "natural_key": null,
+    "assumptions": ["The same track can appear more than once in one playlist"]
+  },
+  "Play": {
+    "description": "One time I played a track, with when and from which context",
+    "use_cases": ["what I listen to", "what I save and forget"],
+    "references": ["listen", "stream", "scrobble"],
+    "tables": [{"table": "plays", "source_pipeline": "spotify_pipeline", "role": "primary"}],
+    "natural_key": "played_at",
+    "assumptions": ["The API returns only the last 50 plays; history grows only through repeated incremental loads"]
+  },
+  "SavedTrack": {
+    "description": "A track I saved (liked) to my library, with when I saved it",
+    "use_cases": ["what I save and forget"],
+    "references": ["liked song", "favorite", "library track"],
+    "tables": [{"table": "saved_tracks", "source_pipeline": "spotify_pipeline", "role": "primary"}],
+    "natural_key": "track_id",
+    "assumptions": ["Full current state on each load; removed tracks disappear"]
+  },
+  "TopItemSnapshot": {
+    "description": "Spotify's ranking of my top tracks or artists for one time range on one day",
+    "use_cases": ["how my taste changes"],
+    "references": ["top tracks", "top artists", "favorites ranking"],
+    "tables": [{"table": "top_items", "source_pipeline": "spotify_pipeline", "role": "primary"}],
+    "natural_key": "snapshot_date + item_type + time_range + id",
+    "assumptions": [
+      "short_term is about 4 weeks, medium_term about 6 months, long_term about 1 year",
+      "One snapshot per day; trend needs loads on several days"
+    ]
+  },
+  "_excluded": [
+    {"table": "_dlt_version", "reason": "dlt internal table"},
+    {"table": "_dlt_loads", "reason": "dlt internal table"},
+    {"table": "_dlt_pipeline_state", "reason": "dlt internal table"},
+    {"table": "plays__track__album__artists", "reason": "album artists duplicate track artists for this use case"},
+    {"table": "saved_tracks__track__album__artists", "reason": "album artists duplicate track artists for this use case"},
+    {"table": "playlist_items__item__album__artists", "reason": "album artists duplicate track artists for this use case"},
+    {"table": "top_items__album__artists", "reason": "album artists duplicate track artists for this use case"}
+  ]
+}

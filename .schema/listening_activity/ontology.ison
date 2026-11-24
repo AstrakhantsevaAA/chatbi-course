@@ -1,0 +1,87 @@
+nodes.Entity
+id	label	inferred	assumption
+Track	Track	false	Collapses track objects embedded in plays, saved_tracks, playlist_items and top_items (item_type=tracks). Natural key: track id. Strategy: prefer whichever source has a value; include all tracks.
+Artist	Artist	false	From the *__track__artists child tables and top_items (item_type=artists). Natural key: artist id. Only id and name: Spotify returns no genres or popularity.
+Album	Album	false	Embedded in every track object. Natural key: album id.
+Playlist	Playlist	false	Master source: playlists. Items exist only for playlists I own or collaborate on.
+PlaylistItem	PlaylistItem	false	One row per track added to a playlist. The same track can appear twice.
+Play	Play	false	One row per play. API keeps only the last 50; history grows with incremental loads.
+SavedTrack	SavedTrack	false	One row per liked track. Full current state on each load.
+TopItemSnapshot	TopItemSnapshot	false	Daily ranking per item_type and time_range (short ~4 weeks, medium ~6 months, long ~1 year).
+
+nodes.Attribute
+entity	name	type	master_source	also_in	note
+:Entity:Track	track_id	text	saved_tracks.track_id	plays.track_id; playlist_items.track_id; top_items.id	natural_key
+:Entity:Track	name	text	saved_tracks.track__name	plays.track__name; playlist_items.item__name; top_items.name	
+:Entity:Track	duration_ms	bigint	saved_tracks.track__duration_ms	plays.track__duration_ms; playlist_items.item__duration_ms; top_items.duration_ms	
+:Entity:Track	explicit	bool	saved_tracks.track__explicit	plays.track__explicit; playlist_items.item__explicit; top_items.explicit	
+:Entity:Track	is_local	bool	playlist_items.item__is_local	saved_tracks.track__is_local; plays.track__is_local	local files have no track_id
+:Entity:Track	isrc	text	saved_tracks.track__external_ids__isrc	plays.track__external_ids__isrc; playlist_items.item__external_ids__isrc; top_items.external_ids__isrc	
+:Entity:Track	album_id	text	saved_tracks.track__album__id	plays.track__album__id; playlist_items.item__album__id; top_items.album__id	FK to Album
+:Entity:Track	spotify_url	text	saved_tracks.track__external_urls__spotify	plays.track__external_urls__spotify; top_items.external_urls__spotify	
+:Entity:Artist	artist_id	text	top_items.id (item_type=artists)	*__track__artists.id	natural_key
+:Entity:Artist	name	text	top_items.name (item_type=artists)	*__track__artists.name	
+:Entity:Artist	spotify_url	text	top_items.external_urls__spotify	*__track__artists.external_urls__spotify	
+:Entity:Album	album_id	text	saved_tracks.track__album__id	plays.track__album__id; playlist_items.item__album__id; top_items.album__id	natural_key
+:Entity:Album	name	text	saved_tracks.track__album__name	plays.track__album__name; playlist_items.item__album__name; top_items.album__name	
+:Entity:Album	album_type	text	saved_tracks.track__album__album_type	plays.track__album__album_type; playlist_items.item__album__album_type; top_items.album__album_type	album, single, compilation
+:Entity:Album	release_date	text	saved_tracks.track__album__release_date	plays.track__album__release_date; top_items.album__release_date	mixed precision
+:Entity:Album	release_date_precision	text	saved_tracks.track__album__release_date_precision	plays.track__album__release_date_precision	year, month, or day
+:Entity:Album	total_tracks	bigint	saved_tracks.track__album__total_tracks	plays.track__album__total_tracks	
+:Entity:Playlist	playlist_id	text	playlists.id	playlist_items._playlists_id	natural_key
+:Entity:Playlist	name	text	playlists.name		
+:Entity:Playlist	description	text	playlists.description		
+:Entity:Playlist	is_public	bool	playlists.public		
+:Entity:Playlist	is_collaborative	bool	playlists.collaborative		
+:Entity:Playlist	items_total	bigint	playlists.items__total		
+:Entity:Playlist	owner_id	text	playlists.owner__id		
+:Entity:Playlist	owner_display_name	text	playlists.owner__display_name		
+:Entity:PlaylistItem	playlist_id	text	playlist_items._playlists_id		FK to Playlist
+:Entity:PlaylistItem	track_id	text	playlist_items.track_id		FK to Track
+:Entity:PlaylistItem	added_at	timestamp	playlist_items.added_at		
+:Entity:PlaylistItem	added_by_id	text	playlist_items.added_by__id		
+:Entity:Play	played_at	timestamp	plays.played_at		natural_key
+:Entity:Play	track_id	text	plays.track_id		FK to Track
+:Entity:Play	context_type	text	plays.context__type		playlist, album, artist, or null
+:Entity:Play	context_uri	text	plays.context__uri		
+:Entity:SavedTrack	track_id	text	saved_tracks.track_id		natural_key; FK to Track
+:Entity:SavedTrack	added_at	timestamp	saved_tracks.added_at		
+:Entity:TopItemSnapshot	snapshot_date	text	top_items.snapshot_date		part of natural key
+:Entity:TopItemSnapshot	item_type	text	top_items.item_type		tracks or artists; part of natural key
+:Entity:TopItemSnapshot	time_range	text	top_items.time_range		short_term, medium_term, long_term; part of natural key
+:Entity:TopItemSnapshot	item_id	text	top_items.id		part of natural key; Track or Artist id
+:Entity:TopItemSnapshot	rank	bigint	top_items.rank		1 = top
+
+edges.PERFORMED_BY
+from	to	via	inferred
+:Entity:Track	:Entity:Artist	*__track__artists._dlt_parent_id = <event>._dlt_id	false
+
+edges.ON_ALBUM
+from	to	via	inferred
+:Entity:Track	:Entity:Album	track__album__id	false
+
+edges.CONTAINS
+from	to	via	inferred
+:Entity:Playlist	:Entity:PlaylistItem	playlist_items._playlists_id = playlists.id	false
+
+edges.OF_TRACK
+from	to	via	inferred
+:Entity:PlaylistItem	:Entity:Track	playlist_items.track_id	false
+:Entity:Play	:Entity:Track	plays.track_id	false
+:Entity:SavedTrack	:Entity:Track	saved_tracks.track_id	false
+
+edges.RANKS
+from	to	via	inferred
+:Entity:TopItemSnapshot	:Entity:Track	top_items.id where item_type = 'tracks'	false
+:Entity:TopItemSnapshot	:Entity:Artist	top_items.id where item_type = 'artists'	false
+
+edges.STITCHED_BY
+from	to	via	inferred
+:Entity:Track	:Entity:Track	track_id	false
+:Entity:Artist	:Entity:Artist	artist_id	false
+:Entity:Album	:Entity:Album	album_id	false
+
+nodes.SemanticGap
+concept	use_case	note
+Genre	how my taste changes	Spotify returns no artist genres for Development Mode apps
+PlayHistory	what I save and forget	Only the last 50 plays exist in the API; schedule the pipeline to build history

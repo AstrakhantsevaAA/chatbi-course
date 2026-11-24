@@ -11,7 +11,7 @@ questions about your listening through a semantic layer.
 | Module | Status | Files |
 |---|---|---|
 | 1. Load Spotify into your warehouse | ✅ offline test passes | `get_refresh_token.py`, `spotify_pipeline.py` |
-| 2. Generate the ontology with the AI Harness | ⏳ | `.schema/spotify/` |
+| 2. Generate the ontology with the AI Harness | ✅ on real data (DuckDB) | `.schema/listening_activity/`, `transformations/` |
 | 3. Roles and metrics | ⏳ | `course_skills/` |
 | 4. The answering agent | ⏳ | `course_skills/answer-question`, `gate.py` |
 | 5. Agent-drafted actions and deploy | ⏳ | |
@@ -51,3 +51,13 @@ No Spotify account needed; the tests use a fake Spotify API.
 ```bash
 uv run python -m unittest discover -s tests -t .
 ```
+
+## Build the CDM
+
+```bash
+uv run python transformations/listening_activity_to_cdm.py
+```
+
+The ontology files in `.schema/listening_activity/` were generated with the
+AI Harness `transformations` toolkit (`/annotate-sources` → `/create-ontology`
+→ `/generate-cdm` → `/create-transformation`).

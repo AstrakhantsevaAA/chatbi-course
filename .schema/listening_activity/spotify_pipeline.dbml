@@ -1,0 +1,365 @@
+Table "plays" [note: 'concept: Play | role: primary | natural_key: played_at | also embeds: Track (track__*), Album (track__album__*)'] {
+    "played_at" timestamp [pk, not null, note: 'natural_key']
+    "track_id" text [note: 'natural_key: Track']
+    "context__type" text
+    "context__uri" text
+    "context__href" text
+    "context__external_urls__spotify" text
+    "track__disc_number" bigint
+    "track__duration_ms" bigint
+    "track__explicit" bool
+    "track__href" text
+    "track__id" text
+    "track__is_local" bool
+    "track__is_playable" bool
+    "track__name" text
+    "track__track_number" bigint
+    "track__type" text
+    "track__uri" text
+    "track__external_urls__spotify" text
+    "track__external_ids__isrc" text
+    "track__album__album_type" text
+    "track__album__href" text
+    "track__album__id" text
+    "track__album__is_playable" bool
+    "track__album__name" text
+    "track__album__release_date" text
+    "track__album__release_date_precision" text
+    "track__album__total_tracks" bigint
+    "track__album__type" text
+    "track__album__uri" text
+    "track__album__external_urls__spotify" text
+    "_dlt_load_id" text [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "saved_tracks" [note: 'concept: SavedTrack | role: primary | natural_key: track_id | also embeds: Track (track__*), Album (track__album__*)'] {
+    "added_at" timestamp
+    "track_id" text [note: 'natural_key: Track']
+    "track__disc_number" bigint
+    "track__duration_ms" bigint
+    "track__explicit" bool
+    "track__href" text
+    "track__id" text
+    "track__is_local" bool
+    "track__is_playable" bool
+    "track__name" text
+    "track__track_number" bigint
+    "track__type" text
+    "track__uri" text
+    "track__external_urls__spotify" text
+    "track__external_ids__isrc" text
+    "track__album__album_type" text
+    "track__album__href" text
+    "track__album__id" text
+    "track__album__is_playable" bool
+    "track__album__name" text
+    "track__album__release_date" text
+    "track__album__release_date_precision" text
+    "track__album__total_tracks" bigint
+    "track__album__type" text
+    "track__album__uri" text
+    "track__album__external_urls__spotify" text
+    "_dlt_load_id" text [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "top_items" [note: 'concept: TopItemSnapshot | role: primary | natural_key: snapshot_date+item_type+time_range+id | rows are Track when item_type=tracks, Artist when item_type=artists'] {
+    "disc_number" bigint
+    "duration_ms" bigint
+    "explicit" bool
+    "href" text
+    "id" text [pk, not null]
+    "is_local" bool
+    "is_playable" bool
+    "name" text
+    "track_number" bigint
+    "type" text
+    "uri" text
+    "snapshot_date" text [pk, not null]
+    "item_type" text [pk, not null]
+    "time_range" text [pk, not null]
+    "rank" bigint
+    "external_urls__spotify" text
+    "external_ids__isrc" text
+    "album__album_type" text
+    "album__href" text
+    "album__id" text
+    "album__is_playable" bool
+    "album__name" text
+    "album__release_date" text
+    "album__release_date_precision" text
+    "album__total_tracks" bigint
+    "album__type" text
+    "album__uri" text
+    "album__external_urls__spotify" text
+    "_dlt_load_id" text [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "playlist_items" [note: 'concept: PlaylistItem | role: primary | also embeds: Track (item__*), Album (item__album__*) | parent: playlists via _playlists_id'] {
+    "added_at" timestamp
+    "is_local" bool
+    "_playlists_id" text
+    "track_id" text [note: 'natural_key: Track']
+    "item__is_playable" bool
+    "item__explicit" bool
+    "item__type" text
+    "item__episode" bool
+    "item__track" bool
+    "item__disc_number" bigint
+    "item__track_number" bigint
+    "item__duration_ms" bigint
+    "item__href" text
+    "item__id" text
+    "item__name" text
+    "item__uri" text
+    "item__is_local" bool
+    "item__external_urls__spotify" text
+    "item__external_ids__isrc" text
+    "item__album__is_playable" bool
+    "item__album__type" text
+    "item__album__album_type" text
+    "item__album__href" text
+    "item__album__id" text
+    "item__album__name" text
+    "item__album__release_date" text
+    "item__album__release_date_precision" text
+    "item__album__uri" text
+    "item__album__total_tracks" bigint
+    "item__album__external_urls__spotify" text
+    "added_by__href" text
+    "added_by__id" text
+    "added_by__type" text
+    "added_by__uri" text
+    "added_by__external_urls__spotify" text
+    "_dlt_load_id" text [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "playlists" [note: 'concept: Playlist | role: primary | natural_key: id'] {
+    "collaborative" bool
+    "description" text
+    "href" text
+    "id" text
+    "name" text
+    "public" bool
+    "snapshot_id" text
+    "type" text
+    "uri" text
+    "items__href" text
+    "items__total" bigint
+    "owner__display_name" text
+    "owner__href" text
+    "owner__id" text
+    "owner__type" text
+    "owner__uri" text
+    "owner__external_urls__spotify" text
+    "external_urls__spotify" text
+    "_dlt_load_id" text [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "playlist_items__item__artists" [note: 'concept: Artist | role: secondary | bridge: track to artist'] {
+    "href" text
+    "id" text
+    "name" text
+    "type" text
+    "uri" text
+    "external_urls__spotify" text
+    "_dlt_parent_id" text [not null]
+    "_dlt_list_idx" bigint [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "playlist_items__item__album__artists" [note: 'excluded: album artists duplicate track artists for this use case'] {
+    "href" text
+    "id" text
+    "name" text
+    "type" text
+    "uri" text
+    "external_urls__spotify" text
+    "_dlt_parent_id" text [not null]
+    "_dlt_list_idx" bigint [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "top_items__artists" [note: 'concept: Artist | role: secondary | bridge: top track to artist'] {
+    "href" text
+    "id" text
+    "name" text
+    "type" text
+    "uri" text
+    "external_urls__spotify" text
+    "_dlt_root_id" text [not null]
+    "_dlt_parent_id" text [not null]
+    "_dlt_list_idx" bigint [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "top_items__album__artists" [note: 'excluded: album artists duplicate track artists for this use case'] {
+    "href" text
+    "id" text
+    "name" text
+    "type" text
+    "uri" text
+    "external_urls__spotify" text
+    "_dlt_root_id" text [not null]
+    "_dlt_parent_id" text [not null]
+    "_dlt_list_idx" bigint [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "plays__track__artists" [note: 'concept: Artist | role: secondary | bridge: track to artist'] {
+    "href" text
+    "id" text
+    "name" text
+    "type" text
+    "uri" text
+    "external_urls__spotify" text
+    "_dlt_parent_id" text [not null]
+    "_dlt_list_idx" bigint [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "plays__track__album__artists" [note: 'excluded: album artists duplicate track artists for this use case'] {
+    "href" text
+    "id" text
+    "name" text
+    "type" text
+    "uri" text
+    "external_urls__spotify" text
+    "_dlt_parent_id" text [not null]
+    "_dlt_list_idx" bigint [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "saved_tracks__track__artists" [note: 'concept: Artist | role: secondary | bridge: track to artist'] {
+    "href" text
+    "id" text
+    "name" text
+    "type" text
+    "uri" text
+    "external_urls__spotify" text
+    "_dlt_parent_id" text [not null]
+    "_dlt_list_idx" bigint [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "saved_tracks__track__album__artists" [note: 'excluded: album artists duplicate track artists for this use case'] {
+    "href" text
+    "id" text
+    "name" text
+    "type" text
+    "uri" text
+    "external_urls__spotify" text
+    "_dlt_parent_id" text [not null]
+    "_dlt_list_idx" bigint [not null]
+    "_dlt_id" text [unique, not null]
+}
+
+Table "_dlt_version" [note: 'excluded: dlt internal table'] {
+    "version" bigint [not null, note: 'Numeric version of the schema, incremented on each schema change']
+    "engine_version" bigint [not null, note: 'Version of the dlt schema engine that created this schema']
+    "inserted_at" timestamp [not null, note: 'Timestamp when this schema version was stored']
+    "schema_name" text [not null, note: 'Name of the schema']
+    "version_hash" text [not null, note: 'Unique hash of the schema content, used to detect changes']
+    "schema" text [not null, note: 'JSON representation of the complete schema definition']
+    Note {
+        'Created by DLT. Tracks schema updates'
+    }
+}
+
+Table "_dlt_loads" [note: 'excluded: dlt internal table'] {
+    "load_id" text [not null, note: 'Unique identifier of the load operation']
+    "schema_name" text [note: 'Name of the schema associated with this load']
+    "status" bigint [not null, note: 'Status of the load operation (0 = success)']
+    "inserted_at" timestamp [not null, note: 'Timestamp when the load was completed']
+    "schema_version_hash" text [note: 'Hash of the schema version used during this load']
+    Note {
+        'Created by DLT. Tracks completed loads'
+    }
+}
+
+Table "_dlt_pipeline_state" [note: 'excluded: dlt internal table'] {
+    "version" bigint [not null, note: 'Numeric version of the pipeline state']
+    "engine_version" bigint [not null, note: 'Version of the dlt state engine']
+    "pipeline_name" text [not null, note: 'Name of the pipeline this state belongs to']
+    "state" text [not null, note: 'Compressed JSON representation of the pipeline state']
+    "created_at" timestamp [not null, note: 'Timestamp when this state was created']
+    "version_hash" text [note: 'Hash of the state content, used to detect changes']
+    "_dlt_load_id" text [not null, note: 'Load identifier linking this row to its load operation']
+    "_dlt_id" text [unique, not null]
+}
+
+Ref {
+    "plays"."_dlt_load_id" > "_dlt_loads"."load_id"
+}
+
+Ref {
+    "saved_tracks"."_dlt_load_id" > "_dlt_loads"."load_id"
+}
+
+Ref {
+    "top_items"."_dlt_load_id" > "_dlt_loads"."load_id"
+}
+
+Ref {
+    "playlist_items"."_dlt_load_id" > "_dlt_loads"."load_id"
+}
+
+Ref {
+    "playlists"."_dlt_load_id" > "_dlt_loads"."load_id"
+}
+
+Ref {
+    "_dlt_pipeline_state"."_dlt_load_id" > "_dlt_loads"."load_id"
+}
+
+Ref {
+    "playlist_items__item__artists"."_dlt_parent_id" > "playlist_items"."_dlt_id"
+}
+
+Ref {
+    "playlist_items__item__album__artists"."_dlt_parent_id" > "playlist_items"."_dlt_id"
+}
+
+Ref {
+    "top_items__artists"."_dlt_parent_id" > "top_items"."_dlt_id"
+}
+
+Ref {
+    "top_items__artists"."_dlt_root_id" > "top_items"."_dlt_id"
+}
+
+Ref {
+    "top_items__album__artists"."_dlt_parent_id" > "top_items"."_dlt_id"
+}
+
+Ref {
+    "top_items__album__artists"."_dlt_root_id" > "top_items"."_dlt_id"
+}
+
+Ref {
+    "plays__track__artists"."_dlt_parent_id" > "plays"."_dlt_id"
+}
+
+Ref {
+    "plays__track__album__artists"."_dlt_parent_id" > "plays"."_dlt_id"
+}
+
+Ref {
+    "saved_tracks__track__artists"."_dlt_parent_id" > "saved_tracks"."_dlt_id"
+}
+
+Ref {
+    "saved_tracks__track__album__artists"."_dlt_parent_id" > "saved_tracks"."_dlt_id"
+}
+
+Ref {
+    "_dlt_version"."version_hash" < "_dlt_loads"."schema_version_hash"
+}
+
+Ref {
+    "_dlt_version"."schema_name" <> "_dlt_loads"."schema_name"
+}
