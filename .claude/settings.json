@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__dlt-workspace-mcp__execute_sql_query",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --quiet python \"$CLAUDE_PROJECT_DIR/gate.py\" hook"
+          }
+        ]
+      }
+    ]
+  }
+}

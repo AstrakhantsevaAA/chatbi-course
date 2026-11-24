@@ -206,3 +206,5 @@ __marimo__/
 .claude/settings.local.json
 .claude/dlthub/
 .dlt/.toolkits
+.chatbi/
+answers_log.jsonl
