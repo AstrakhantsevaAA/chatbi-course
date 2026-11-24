@@ -19,7 +19,7 @@ Sections 1–5 use no plays and cover years. The last section, Recent listening,
 ## Questions
 1. [x] How has my library of liked songs grown since 2020? → Chart 1
 2. [x] When did I add tracks to my playlists? → Chart 2
-3. [x] Which artists have the most liked songs? → Chart 3
+3. [x] Which artists have the most songs in my library (liked or in my playlists)? → Chart 3
 4. [x] How many new artists did I discover each year? → Chart 4
 5. [x] From which decades is the music I like? → Chart 5
 6. [x] Did the era of what I like change over the years? → Chart 6
@@ -33,6 +33,7 @@ Sections 1–5 use no plays and cover years. The last section, Recent listening,
 
 ## Data Gaps
 Real listening time, skips, and lifetime plays: only in Spotify's Extended streaming history export.
+Tracks of playlists I only follow (4 of 6, for example "Bad Omens SETLIST 2026"): Spotify returns items only for playlists I own or collaborate on.
 
 ## Chart 1: Liked songs per month
 question: How has my library of liked songs grown since 2020?
@@ -74,8 +75,8 @@ alt.Chart(df).mark_bar().encode(
 ).properties(title="Tracks added to playlists per quarter")
 ```
 
-## Chart 3: Top 15 artists in my library
-question: Which artists have the most liked songs?
+## Chart 3: Top 15 artists in my library (liked songs and my playlists)
+question: Which artists have the most songs in my library (liked or in my playlists)?
 section: Who I love
 
 ```sql

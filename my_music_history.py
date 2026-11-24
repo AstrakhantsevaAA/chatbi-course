@@ -33,7 +33,7 @@ def _(dataset, mo):
         SELECT
           (SELECT COUNT(*) FROM fact_saved_track) AS liked_songs,
           (SELECT MIN(added_at) FROM fact_saved_track) AS liking_since,
-          (SELECT COUNT(DISTINCT b.artist_sk) FROM fact_saved_track s JOIN bridge_track_artist b ON s.track_sk = b.track_sk) AS artists,
+          (SELECT COUNT(DISTINCT b.artist_sk) FROM bridge_track_artist b WHERE b.track_sk IN (SELECT track_sk FROM fact_saved_track UNION SELECT track_sk FROM fact_playlist_item)) AS artists,
           (SELECT COUNT(*) FROM fact_saved_album) AS saved_albums,
           (SELECT COUNT(*) FROM fact_playlist_item) AS playlist_additions,
           (SELECT MIN(a.release_year) FROM fact_saved_track s JOIN dim_track t ON s.track_sk = t.track_sk JOIN dim_album a ON t.album_sk = a.album_sk) AS oldest_release
@@ -47,7 +47,9 @@ def _(dataset, mo):
             mo.stat(value=f"{_k.playlist_additions:,}", label="Tracks added to playlists"),
             mo.stat(value=f"{int(_k.oldest_release)}", label="Oldest release I like"),
         ], justify="start"),
-        mo.md("Built from my library and Spotify's own rankings, so it covers years, not days."),
+        mo.md("Built from my library and Spotify's own rankings, so it covers years, not days. "
+              "My library = liked songs + tracks in playlists I own or collaborate on. "
+              "Spotify does not return the tracks of playlists I only follow."),
     ])
     return
 
@@ -121,9 +123,27 @@ def _(mo):
 @app.cell
 def _(dataset):
     df_h3 = dataset("""
-        SELECT a.artist_name, COUNT(DISTINCT s.track_sk) AS liked_songs,
-               MIN(CAST(s.added_at AS DATE)) AS first_liked
-        FROM fact_saved_track s JOIN bridge_track_artist b ON s.track_sk = b.track_sk JOIN dim_artist a ON b.artist_sk = a.artist_sk GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 15
+        WITH library AS (
+            SELECT track_sk, 'liked' AS source FROM fact_saved_track
+            UNION
+            SELECT i.track_sk, 'only in my playlists' FROM fact_playlist_item i
+            WHERE i.track_sk <> 'UNKNOWN'
+              AND i.track_sk NOT IN (SELECT track_sk FROM fact_saved_track)
+        ),
+        by_artist AS (
+            SELECT a.artist_name, l.source, COUNT(DISTINCT l.track_sk) AS songs
+            FROM library l
+            JOIN bridge_track_artist b ON b.track_sk = l.track_sk
+            JOIN dim_artist a ON a.artist_sk = b.artist_sk
+            GROUP BY 1, 2
+        ),
+        top AS (
+            SELECT artist_name, SUM(songs) AS total FROM by_artist
+            GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 15
+        )
+        SELECT b.artist_name, b.source, b.songs, t.total
+        FROM by_artist b JOIN top t ON b.artist_name = t.artist_name
+        ORDER BY t.total DESC, b.artist_name
     """).df()
     return (df_h3,)
 
@@ -132,10 +152,13 @@ def _(dataset):
 def _(alt, df_h3):
     _chart = (
         alt.Chart(df_h3).mark_bar().encode(
-            x=alt.X("liked_songs:Q", title="Liked songs"),
-            y=alt.Y("artist_name:N", sort="-x", title=None),
-            tooltip=["artist_name:N", "liked_songs:Q", "first_liked:T"]
-        ).properties(title="Top 15 artists in my liked songs")
+            x=alt.X("songs:Q", title="Songs in my library"),
+            y=alt.Y("artist_name:N", sort=alt.EncodingSortField("total", order="descending"), title=None),
+            color=alt.Color("source:N", title=None),
+            tooltip=["artist_name:N", "source:N", "songs:Q", "total:Q"]
+        ).properties(
+            title="Top 15 artists in my library (liked songs and my playlists)"
+        )
     )
     _chart
     return
