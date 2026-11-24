@@ -34,6 +34,8 @@ Charts reuse the metric formulas in `.schema/listening_activity/ontology.ison`, 
 14. [x] Which artists are new in my top, and which faded? → Chart 14
 15. [x] How have my playlists grown over time? → Chart 15
 16. [x] Which artists dominate my liked songs? → Chart 16
+17. [x] Which artists dominate my saved albums? → Chart 17
+18. [x] How big are my playlists, and which are mine? → Chart 18
 
 ## Data Gaps
 Genre: Spotify returns no artist genres for Development Mode apps, so there is no genre chart.
@@ -436,6 +438,55 @@ alt.Chart(df).mark_bar().encode(
     tooltip=["artist_name:N", "liked_songs:Q"]
 ).properties(title="Top 10 artists in my liked songs")
 ```
+
+## Chart 17: Top 10 artists in my saved albums
+question: Which artists dominate my saved albums?
+type: bar
+x: count of saved albums
+y: dim_artist.artist_name (main album artist)
+source: fact_saved_album + dim_artist
+
+```sql
+SELECT a.artist_name, COUNT(f.saved_album_sk) AS saved_albums
+FROM fact_saved_album f JOIN dim_artist a ON f.artist_sk = a.artist_sk
+GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 10
+```
+
+```altair
+alt.Chart(df).mark_bar().encode(
+    x=alt.X("saved_albums:Q", title="Saved albums"),
+    y=alt.Y("artist_name:N", sort="-x", title=None),
+    tooltip=["artist_name:N", "saved_albums:Q"]
+).properties(title="Top 10 artists in my saved albums")
+```
+
+## Chart 18: Playlists by size
+question: How big are my playlists, and which are mine?
+type: bar
+x: dim_playlist.items_total
+y: dim_playlist.playlist_name
+source: dim_playlist
+
+```sql
+SELECT playlist_name, items_total,
+       CASE WHEN is_mine THEN 'mine' WHEN is_collaborative THEN 'collaborative'
+            ELSE 'followed' END AS ownership
+FROM dim_playlist ORDER BY items_total DESC LIMIT 20
+```
+
+```altair
+alt.Chart(df).mark_bar().encode(
+    x=alt.X("items_total:Q", title="Tracks"),
+    y=alt.Y("playlist_name:N", sort="-x", title=None),
+    color=alt.Color("ownership:N", title=None),
+    tooltip=["playlist_name:N", "ownership:N", "items_total:Q"]
+).properties(title="My playlists and followed playlists, by size")
+```
+
+## Library tiles and recently saved albums
+question: What is in my library?
+type: stat tiles + table (10 most recently saved albums)
+source: fact_saved_track, fact_saved_album, dim_playlist, dim_album, dim_artist
 
 ## Diversity tiles
 question: How varied is my listening?

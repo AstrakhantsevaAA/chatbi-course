@@ -33,7 +33,12 @@ TRACK_SOURCES = """
 """
 
 ALBUM_SOURCES = """
-    SELECT track__album__id AS album_id, track__album__name AS album_name,
+    SELECT album__id AS album_id, album__name AS album_name, album__album_type AS album_type,
+           album__release_date AS release_date, album__release_date_precision AS release_date_precision,
+           album__total_tracks AS total_tracks, 0 AS priority
+    FROM saved_albums
+    UNION ALL
+    SELECT track__album__id, track__album__name AS album_name,
            track__album__album_type AS album_type, track__album__release_date AS release_date,
            track__album__release_date_precision AS release_date_precision,
            track__album__total_tracks AS total_tracks, 1 AS priority
@@ -124,6 +129,8 @@ def dim_artist(dataset: dlt.Dataset):
         SELECT artist_id, artist_name, spotify_url, 1 AS priority FROM ({TRACK_ARTISTS}) ta
         UNION ALL
         SELECT id, name, external_urls__spotify, 0 FROM top_items WHERE item_type = 'artists'
+        UNION ALL
+        SELECT id, name, external_urls__spotify, 2 FROM saved_albums__album__artists
     """
     yield dataset(f"""
         SELECT * FROM (
@@ -136,13 +143,17 @@ def dim_artist(dataset: dlt.Dataset):
     """)
 
 
-@dlt.hub.transformation(write_disposition="replace", columns={"playlist_sk": KEY})
+@dlt.hub.transformation(
+    write_disposition="replace",
+    columns={"playlist_sk": KEY, "is_mine": {"data_type": "bool", "nullable": True}},
+)
 def dim_playlist(dataset: dlt.Dataset):
     yield dataset("""
         SELECT MD5(id) AS playlist_sk, id AS source_id, 'spotify_pipeline' AS source_pipeline,
                name AS playlist_name, description, public AS is_public,
                collaborative AS is_collaborative, items__total AS items_total,
-               owner__id AS owner_id, owner__display_name AS owner_display_name
+               owner__id AS owner_id, owner__display_name AS owner_display_name,
+               owner__id = (SELECT MAX(id) FROM profile) AS is_mine
         FROM playlists
     """)
 
@@ -227,6 +238,25 @@ def fact_top_item(dataset: dlt.Dataset):
     """)
 
 
+@dlt.hub.transformation(
+    write_disposition="replace",
+    columns={
+        "saved_album_sk": KEY, "album_sk": FK, "artist_sk": FK,
+        "added_date": {"data_type": "date"},
+    },
+)
+def fact_saved_album(dataset: dlt.Dataset):
+    yield dataset(f"""
+        SELECT MD5(s.album_id) AS saved_album_sk, MD5(s.album_id) AS album_sk,
+               COALESCE(MD5(a.id), {UNKNOWN}) AS artist_sk,
+               s.added_at, CAST(s.added_at AS DATE) AS added_date
+        FROM saved_albums s
+        LEFT JOIN saved_albums__album__artists a
+          ON a._dlt_parent_id = s._dlt_id AND a._dlt_list_idx = 0
+        WHERE s.album_id IS NOT NULL
+    """)
+
+
 @dlt.source
 def listening_activity_to_cdm(dataset: dlt.Dataset):
     """Dimensions first, then the bridge, then facts."""
@@ -239,6 +269,7 @@ def listening_activity_to_cdm(dataset: dlt.Dataset):
     yield fact_saved_track(dataset)
     yield fact_playlist_item(dataset)
     yield fact_top_item(dataset)
+    yield fact_saved_album(dataset)
 
 
 def main() -> None:

@@ -36,6 +36,11 @@ class OfflinePipelineTest(unittest.TestCase):
         self.assertEqual(self.count("playlists"), 2)
         self.assertEqual(self.count("playlist_items"), 3)
         self.assertEqual(self.count("top_items"), 3 * 5 + 3 * 4)
+        self.assertEqual(self.count("saved_albums"), 1)
+        self.assertEqual(self.count("profile"), 1)
+        tables = self.pipeline.default_schema.data_table_names()
+        self.assertNotIn("saved_albums__album__tracks__items", tables)
+        self.assertIn("saved_albums__album__artists", tables)
 
         new_play = {"played_at": "2026-11-25T10:00:00.000Z", "track": fake_spotify.TRACKS[1],
                     "context": {"type": "album"}}

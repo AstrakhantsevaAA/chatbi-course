@@ -351,6 +351,88 @@ def _(mo):
 
 
 @app.cell
+def _(dataset, mo):
+    _lib = dataset("""
+        SELECT
+            (SELECT COUNT(saved_track_sk) FROM fact_saved_track) AS liked_songs,
+            (SELECT COUNT(saved_album_sk) FROM fact_saved_album) AS saved_albums,
+            (SELECT COUNT(playlist_sk) FROM dim_playlist WHERE is_mine) AS my_playlists,
+            (SELECT COUNT(playlist_sk) FROM dim_playlist WHERE NOT is_mine) AS followed_playlists,
+            (SELECT SUM(items_total) FROM dim_playlist WHERE is_mine) AS tracks_in_my_playlists
+    """).df().iloc[0]
+    mo.hstack([
+        mo.stat(value=f"{_lib.liked_songs:,}", label="Liked songs"),
+        mo.stat(value=f"{_lib.saved_albums:,}", label="Saved albums"),
+        mo.stat(value=f"{_lib.my_playlists:,}", label="My playlists"),
+        mo.stat(value=f"{_lib.followed_playlists:,}", label="Followed playlists"),
+        mo.stat(value=f"{_lib.tracks_in_my_playlists:,}", label="Tracks in my playlists"),
+    ], justify="start")
+    return
+
+
+@app.cell
+def _(dataset):
+    df_chart17 = dataset("""
+        SELECT a.artist_name, COUNT(f.saved_album_sk) AS saved_albums
+        FROM fact_saved_album f JOIN dim_artist a ON f.artist_sk = a.artist_sk
+        GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 10
+    """).df()
+    return (df_chart17,)
+
+
+@app.cell
+def _(alt, df_chart17):
+    _chart = (
+        alt.Chart(df_chart17).mark_bar().encode(
+            x=alt.X("saved_albums:Q", title="Saved albums"),
+            y=alt.Y("artist_name:N", sort="-x", title=None),
+            tooltip=["artist_name:N", "saved_albums:Q"]
+        ).properties(title="Top 10 artists in my saved albums")
+    )
+    _chart
+    return
+
+
+@app.cell
+def _(dataset, mo):
+    _recent = dataset("""
+        SELECT al.album_name AS album, ar.artist_name AS artist, al.release_year,
+               f.added_date AS saved_on
+        FROM fact_saved_album f
+        JOIN dim_album al ON f.album_sk = al.album_sk
+        JOIN dim_artist ar ON f.artist_sk = ar.artist_sk
+        ORDER BY f.added_at DESC LIMIT 10
+    """).df()
+    mo.vstack([mo.md("**Recently saved albums**"), mo.ui.table(_recent, selection=None)])
+    return
+
+
+@app.cell
+def _(dataset):
+    df_chart18 = dataset("""
+        SELECT playlist_name, items_total,
+               CASE WHEN is_mine THEN 'mine' WHEN is_collaborative THEN 'collaborative'
+                    ELSE 'followed' END AS ownership
+        FROM dim_playlist ORDER BY items_total DESC LIMIT 20
+    """).df()
+    return (df_chart18,)
+
+
+@app.cell
+def _(alt, df_chart18):
+    _chart = (
+        alt.Chart(df_chart18).mark_bar().encode(
+            x=alt.X("items_total:Q", title="Tracks"),
+            y=alt.Y("playlist_name:N", sort="-x", title=None),
+            color=alt.Color("ownership:N", title=None),
+            tooltip=["playlist_name:N", "ownership:N", "items_total:Q"]
+        ).properties(title="My playlists and followed playlists, by size")
+    )
+    _chart
+    return
+
+
+@app.cell
 def _(dataset):
     df_chart4 = dataset("""
         SELECT DATE_TRUNC('month', added_at) AS month, COUNT(saved_track_sk) AS saved,

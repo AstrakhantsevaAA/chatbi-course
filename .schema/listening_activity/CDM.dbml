@@ -44,6 +44,7 @@ Table dim_playlist [note: 'table_type:dimension; surrogate_key:playlist_sk; scd_
   items_total bigint [note: 'role: measure']
   owner_id varchar [note: 'role: dimension']
   owner_display_name varchar [note: 'role: label']
+  is_mine bool [note: 'role: dimension; true when I own the playlist (owner_id = my profile id)']
 }
 
 Table bridge_track_artist [note: 'table_type:bridge; grain:one row per track per credited artist'] {
@@ -87,4 +88,12 @@ Table fact_top_item [note: 'table_type:fact; grain:one row per snapshot_date per
   rank int [note: 'role: dimension; 1 = top']
   track_sk varchar [ref: > dim_track.track_sk, note: 'role: identifier; UNKNOWN when item_type = artists']
   artist_sk varchar [ref: > dim_artist.artist_sk, note: 'role: identifier; UNKNOWN when item_type = tracks']
+}
+
+Table fact_saved_album [note: 'table_type:fact; grain:one row per album currently saved in my library'] {
+  saved_album_sk varchar [pk, note: 'role: identifier; md5(album_id)']
+  album_sk varchar [ref: > dim_album.album_sk, note: 'role: identifier']
+  artist_sk varchar [ref: > dim_artist.artist_sk, note: 'role: identifier; main album artist']
+  added_at timestamp [note: 'role: time_dimension']
+  added_date date [note: 'role: time_dimension']
 }

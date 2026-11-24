@@ -48,6 +48,15 @@ def strip_noise(value: Any) -> Any:
     return value
 
 
+def with_album_id(row: dict[str, Any]) -> dict[str, Any]:
+    """Lift the album id and drop the album's full track list and copyrights."""
+    album = row.get("album") or {}
+    album.pop("tracks", None)
+    album.pop("copyrights", None)
+    row["album_id"] = album.get("id")
+    return row
+
+
 def with_track_id(row: dict[str, Any]) -> dict[str, Any]:
     """Lift the nested track id to the top level so it can be a key."""
     track = row.get("track") or row.get("item") or {}
@@ -61,7 +70,7 @@ def spotify_source(
     client_secret: str = dlt.secrets.value,
     refresh_token: str = dlt.secrets.value,
 ) -> Any:
-    """Spotify plays, saved tracks, playlists, playlist items, and top items."""
+    """Spotify profile, plays, saved tracks and albums, playlists, and top items."""
     auth = spotify_auth(client_id, client_secret, refresh_token)
     next_link = {"type": "json_link", "next_url_path": "next"}
     config: RESTAPIConfig = {
@@ -90,6 +99,16 @@ def spotify_source(
                 "name": "saved_tracks",
                 "endpoint": {"path": "me/tracks"},
                 "processing_steps": [{"map": strip_noise}, {"map": with_track_id}],
+            },
+            {
+                "name": "saved_albums",
+                "endpoint": {"path": "me/albums"},
+                "processing_steps": [{"map": strip_noise}, {"map": with_album_id}],
+            },
+            {
+                "name": "profile",
+                "primary_key": "id",
+                "endpoint": {"path": "me", "params": {}, "data_selector": "$", "paginator": "single_page"},
             },
             {
                 "name": "playlists",
