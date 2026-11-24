@@ -85,3 +85,13 @@ nodes.SemanticGap
 concept	use_case	note
 Genre	how my taste changes	Spotify returns no artist genres for Development Mode apps
 PlayHistory	what I save and forget	Only the last 50 plays exist in the API; schedule the pipeline to build history
+
+nodes.Metric
+name	display_name	expression	table	filters	aliases	description
+plays	Plays	COUNT(fact_play.play_sk)	fact_play		plays; listens; streams; how often; how many times	Number of plays in the loaded play history
+listening_minutes	Listening minutes	SUM(fact_play.duration_ms) / 60000.0	fact_play		minutes; hours; how much did I listen; listening time	Minutes played, counting full track length (an upper bound on time listened)
+distinct_tracks_played	Distinct tracks played	COUNT(DISTINCT fact_play.track_sk)	fact_play		different tracks; unique songs; variety	Number of different tracks played
+replay_rate	Replay rate	1 - COUNT(DISTINCT fact_play.track_sk) * 1.0 / COUNT(fact_play.play_sk)	fact_play		repeat; on repeat; replays; how repetitive	Share of plays that repeat a track already played in the same period (0 to 1)
+saved_tracks	Saved tracks	COUNT(fact_saved_track.saved_track_sk)	fact_saved_track		liked songs; saved; library size; favorites	Number of tracks currently saved in the library
+forgotten_favorites	Forgotten favorites	COUNT(fact_saved_track.saved_track_sk)	fact_saved_track	NOT EXISTS (SELECT 1 FROM fact_play p WHERE p.track_sk = fact_saved_track.track_sk AND p.played_at >= CURRENT_DATE - INTERVAL '30' DAY) AND NOT EXISTS (SELECT 1 FROM fact_top_item t WHERE t.track_sk = fact_saved_track.track_sk AND t.time_range = 'short_term' AND t.snapshot_date = (SELECT MAX(snapshot_date) FROM fact_top_item))	forgotten; neglected; saved but not played; not listened lately	Saved tracks not played in the last 30 days and not in the latest short_term top tracks
+tracks_added_to_playlists	Tracks added to playlists	COUNT(fact_playlist_item.playlist_item_sk)	fact_playlist_item	fact_playlist_item.track_sk <> 'UNKNOWN'	added to playlists; playlist growth; new playlist tracks	Number of track entries added to my own or collaborative playlists

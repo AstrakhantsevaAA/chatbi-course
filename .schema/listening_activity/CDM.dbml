@@ -2,89 +2,89 @@
 // Sentinel row 'UNKNOWN' replaces NULL foreign keys (for example local files).
 
 Table dim_track [note: 'table_type:dimension; surrogate_key:track_sk; scd_type:1; conformed:true'] {
-  track_sk varchar [pk, note: 'surrogate key: md5(track_id)']
-  source_id varchar [note: 'Spotify track id']
-  source_pipeline varchar
-  track_name varchar
-  duration_ms bigint
-  is_explicit bool
-  isrc varchar
-  album_sk varchar [ref: > dim_album.album_sk]
-  spotify_url varchar
+  track_sk varchar [pk, note: 'role: identifier; surrogate key: md5(track_id)']
+  source_id varchar [note: 'role: identifier; Spotify track id']
+  source_pipeline varchar [note: 'role: dimension']
+  track_name varchar [note: 'role: label']
+  duration_ms bigint [note: 'role: measure']
+  is_explicit bool [note: 'role: dimension']
+  isrc varchar [note: 'role: label']
+  album_sk varchar [ref: > dim_album.album_sk, note: 'role: identifier']
+  spotify_url varchar [note: 'role: label']
 }
 
 Table dim_artist [note: 'table_type:dimension; surrogate_key:artist_sk; scd_type:1; conformed:true'] {
-  artist_sk varchar [pk, note: 'surrogate key: md5(artist_id)']
-  source_id varchar [note: 'Spotify artist id']
-  source_pipeline varchar
-  artist_name varchar
-  spotify_url varchar
+  artist_sk varchar [pk, note: 'role: identifier; surrogate key: md5(artist_id)']
+  source_id varchar [note: 'role: identifier; Spotify artist id']
+  source_pipeline varchar [note: 'role: dimension']
+  artist_name varchar [note: 'role: label']
+  spotify_url varchar [note: 'role: label']
 }
 
 Table dim_album [note: 'table_type:dimension; surrogate_key:album_sk; scd_type:1; conformed:true'] {
-  album_sk varchar [pk, note: 'surrogate key: md5(album_id)']
-  source_id varchar [note: 'Spotify album id']
-  source_pipeline varchar
-  album_name varchar
-  album_type varchar [note: 'album, single, compilation']
-  release_date varchar [note: 'mixed precision, see release_date_precision']
-  release_date_precision varchar
-  release_year int [note: 'first 4 characters of release_date']
-  total_tracks bigint
+  album_sk varchar [pk, note: 'role: identifier; surrogate key: md5(album_id)']
+  source_id varchar [note: 'role: identifier; Spotify album id']
+  source_pipeline varchar [note: 'role: dimension']
+  album_name varchar [note: 'role: label']
+  album_type varchar [note: 'role: dimension; album, single, compilation']
+  release_date varchar [note: 'role: label; mixed precision, see release_date_precision']
+  release_date_precision varchar [note: 'role: dimension']
+  release_year int [note: 'role: dimension; first 4 characters of release_date']
+  total_tracks bigint [note: 'role: measure']
 }
 
 Table dim_playlist [note: 'table_type:dimension; surrogate_key:playlist_sk; scd_type:1; conformed:false'] {
-  playlist_sk varchar [pk, note: 'surrogate key: md5(playlist_id)']
-  source_id varchar [note: 'Spotify playlist id']
-  source_pipeline varchar
-  playlist_name varchar
-  description varchar
-  is_public bool
-  is_collaborative bool
-  items_total bigint
-  owner_id varchar
-  owner_display_name varchar
+  playlist_sk varchar [pk, note: 'role: identifier; surrogate key: md5(playlist_id)']
+  source_id varchar [note: 'role: identifier; Spotify playlist id']
+  source_pipeline varchar [note: 'role: dimension']
+  playlist_name varchar [note: 'role: label']
+  description varchar [note: 'role: label']
+  is_public bool [note: 'role: dimension']
+  is_collaborative bool [note: 'role: dimension']
+  items_total bigint [note: 'role: measure']
+  owner_id varchar [note: 'role: dimension']
+  owner_display_name varchar [note: 'role: label']
 }
 
 Table bridge_track_artist [note: 'table_type:bridge; grain:one row per track per credited artist'] {
-  track_sk varchar [ref: > dim_track.track_sk]
-  artist_sk varchar [ref: > dim_artist.artist_sk]
-  artist_position int [note: '0 = main artist']
+  track_sk varchar [ref: > dim_track.track_sk, note: 'role: identifier']
+  artist_sk varchar [ref: > dim_artist.artist_sk, note: 'role: identifier']
+  artist_position int [note: 'role: dimension; 0 = main artist']
 }
 
 Table fact_play [note: 'table_type:fact; grain:one row per play of one track at one played_at'] {
-  play_sk varchar [pk, note: 'md5(played_at)']
-  played_at timestamp
-  played_date date
-  track_sk varchar [ref: > dim_track.track_sk]
-  album_sk varchar [ref: > dim_album.album_sk]
-  context_type varchar [note: 'playlist, album, artist, or UNKNOWN']
-  context_uri varchar
-  duration_ms bigint [note: 'additive measure: full track length, not time listened']
+  play_sk varchar [pk, note: 'role: identifier; md5(played_at)']
+  played_at timestamp [note: 'role: time_dimension']
+  played_date date [note: 'role: time_dimension']
+  track_sk varchar [ref: > dim_track.track_sk, note: 'role: identifier']
+  album_sk varchar [ref: > dim_album.album_sk, note: 'role: identifier']
+  context_type varchar [note: 'role: dimension; playlist, album, artist, or UNKNOWN']
+  context_uri varchar [note: 'role: label']
+  duration_ms bigint [note: 'role: measure; additive measure: full track length, not time listened']
 }
 
 Table fact_saved_track [note: 'table_type:fact; grain:one row per track currently saved in my library'] {
-  saved_track_sk varchar [pk, note: 'md5(track_id)']
-  track_sk varchar [ref: > dim_track.track_sk]
-  added_at timestamp
-  added_date date
+  saved_track_sk varchar [pk, note: 'role: identifier; md5(track_id)']
+  track_sk varchar [ref: > dim_track.track_sk, note: 'role: identifier']
+  added_at timestamp [note: 'role: time_dimension']
+  added_date date [note: 'role: time_dimension']
 }
 
 Table fact_playlist_item [note: 'table_type:fact; grain:one row per track entry in one of my playlists'] {
-  playlist_item_sk varchar [pk, note: 'md5(playlist_id, track_id, added_at)']
-  playlist_sk varchar [ref: > dim_playlist.playlist_sk]
-  track_sk varchar [ref: > dim_track.track_sk]
-  added_at timestamp
-  added_date date
-  added_by_id varchar
+  playlist_item_sk varchar [pk, note: 'role: identifier; md5(playlist_id, track_id, added_at)']
+  playlist_sk varchar [ref: > dim_playlist.playlist_sk, note: 'role: identifier']
+  track_sk varchar [ref: > dim_track.track_sk, note: 'role: identifier']
+  added_at timestamp [note: 'role: time_dimension']
+  added_date date [note: 'role: time_dimension']
+  added_by_id varchar [note: 'role: dimension']
 }
 
 Table fact_top_item [note: 'table_type:fact; grain:one row per snapshot_date per item_type per time_range per ranked item'] {
-  top_item_sk varchar [pk, note: 'md5(snapshot_date, item_type, time_range, item id)']
-  snapshot_date date
-  item_type varchar [note: 'tracks or artists']
-  time_range varchar [note: 'short_term ~4 weeks, medium_term ~6 months, long_term ~1 year']
-  rank int [note: '1 = top']
-  track_sk varchar [ref: > dim_track.track_sk, note: 'UNKNOWN when item_type = artists']
-  artist_sk varchar [ref: > dim_artist.artist_sk, note: 'UNKNOWN when item_type = tracks']
+  top_item_sk varchar [pk, note: 'role: identifier; md5(snapshot_date, item_type, time_range, item id)']
+  snapshot_date date [note: 'role: time_dimension']
+  item_type varchar [note: 'role: dimension; tracks or artists']
+  time_range varchar [note: 'role: dimension; short_term ~4 weeks, medium_term ~6 months, long_term ~1 year']
+  rank int [note: 'role: dimension; 1 = top']
+  track_sk varchar [ref: > dim_track.track_sk, note: 'role: identifier; UNKNOWN when item_type = artists']
+  artist_sk varchar [ref: > dim_artist.artist_sk, note: 'role: identifier; UNKNOWN when item_type = tracks']
 }

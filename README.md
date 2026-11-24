@@ -12,7 +12,7 @@ questions about your listening through a semantic layer.
 |---|---|---|
 | 1. Load Spotify into your warehouse | ✅ offline test passes | `get_refresh_token.py`, `spotify_pipeline.py` |
 | 2. Generate the ontology with the AI Harness | ✅ on real data (DuckDB) | `.schema/listening_activity/`, `transformations/` |
-| 3. Roles and metrics | ⏳ | `course_skills/` |
+| 3. Roles and metrics | ✅ 61 roles, 7 metrics verified | `course_skills/annotate-column-roles`, `course_skills/add-metrics` |
 | 4. The answering agent | ⏳ | `course_skills/answer-question`, `gate.py` |
 | 5. Agent-drafted actions and deploy | ⏳ | |
 
