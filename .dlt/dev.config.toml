@@ -1,3 +1,0 @@
-# Locally the named destination "playground" is DuckDB; on dltHub it is managed storage.
-[destination.playground]
-destination_type = "duckdb"

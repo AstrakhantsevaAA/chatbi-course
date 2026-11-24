@@ -14,6 +14,7 @@ import anthropic
 import dlt
 
 import gate
+from destinations import cdm_dataset
 
 MODEL = os.getenv("CHATBI_MODEL", "claude-opus-5-5")
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
@@ -120,9 +121,7 @@ def gate_reasons(p: dict, cdm: dict) -> list[str]:
 
 def run_sql(sql: str) -> Any:
     """Run gated, read-only SQL on the CDM and return a DataFrame."""
-    dataset = dlt.attach("listening_activity_cdm", destination="playground",
-                         dataset_name="listening_activity").dataset()
-    return dataset(sql).df()
+    return cdm_dataset()(sql).df()
 
 
 def ask(question: str, turns: list[Turn], client: Any = None, runner: Any = run_sql) -> Turn:

@@ -7,8 +7,8 @@ mode and then `/build-notebook`.
 ---
 
 ```text
-Use /explore-data on the pipeline listening_activity_cdm (dataset listening_activity,
-named destination "playground"), bulk path: plan all charts in one analysis plan, then
+Use /explore-data on the pipeline listening_activity_cdm (dataset listening_activity;
+DuckDB locally, the dltHub playground when deployed), bulk path: plan all charts in one analysis plan, then
 run /build-notebook to create my_music_history.py.
 
 GOAL
@@ -42,9 +42,10 @@ SECTIONS (in this order)
    - Top 10 artists recently, hour x weekday heatmap (UTC), top listening contexts.
 
 RULES (learned the hard way)
-- Connect with dlt.attach("listening_activity_cdm", destination="playground",
-  dataset_name="listening_activity"). Explicit destination and dataset are required on
-  dltHub, where a run has no local pipeline state.
+- Connect with `from destinations import cdm_dataset; dataset = cdm_dataset()`. It
+  attaches listening_activity_cdm with an explicit destination (duckdb on the local dev
+  profile, playground on dltHub) and dataset; dltHub runs have no local pipeline state.
+  Never write "playground" locally: it exists only on dltHub.
 - Use the metric formulas from .schema/listening_activity/ontology.ison verbatim
   (plays, listening_minutes, saved_tracks, saved_albums, library_songs,
   forgotten_favorites). Use column roles from CDM.dbml: group by dimensions, sum measures.

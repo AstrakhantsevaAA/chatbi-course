@@ -3,10 +3,8 @@
 from datetime import date
 from typing import Any, Dict
 
-import dlt
 from dlt.hub.run import JobAbortedException
 
-DESTINATION = "playground"
 CANDIDATES_SQL = """
 SELECT t.source_id AS track_id, t.track_name, COALESCE(a.artist_name, '?') AS artist_name,
        CAST(s.added_date AS VARCHAR) AS saved
@@ -36,7 +34,9 @@ def render(rows: list) -> str:
 
 
 def validate_input(inputs: Dict[str, Any]) -> Dict[str, Any]:
-    rows = dlt.dataset(DESTINATION, "listening_activity")(CANDIDATES_SQL).fetchall()
+    from destinations import cdm_dataset
+
+    rows = cdm_dataset()(CANDIDATES_SQL).fetchall()
     if not rows:
         raise JobAbortedException("No forgotten favorites this week", {"status": "aborted"})
     year, week, _ = date.today().isocalendar()

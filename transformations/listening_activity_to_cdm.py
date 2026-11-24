@@ -8,10 +8,15 @@ dataset, so re-running ingest never mixes raw and modelled tables.
 import os
 from pathlib import Path
 
+import sys
+
 import dlt
 
+# Running this file as a script puts transformations/ on the path, not the root.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from destinations import destination  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
-DESTINATION = os.getenv("SPOTIFY_DESTINATION", "playground")
 UNKNOWN = "'UNKNOWN'"
 
 TRACK_SOURCES = """
@@ -275,11 +280,11 @@ def listening_activity_to_cdm(dataset: dlt.Dataset):
 def main() -> None:
     os.chdir(ROOT)
     # Pass destination and dataset: a platform run has no local pipeline state.
-    source = dlt.attach("spotify_pipeline", destination=DESTINATION, dataset_name="spotify_raw")
+    source = dlt.attach("spotify_pipeline", destination=destination(), dataset_name="spotify_raw")
     cdm = dlt.pipeline(
         # The pipeline name sets the DuckDB file; it must differ from the dataset name.
         pipeline_name="listening_activity_cdm",
-        destination=DESTINATION,
+        destination=destination(),
         dataset_name="listening_activity",
     )
     print(cdm.run(listening_activity_to_cdm(source.dataset())))

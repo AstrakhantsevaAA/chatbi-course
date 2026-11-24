@@ -44,7 +44,7 @@ Then log in once and load:
 
 ```bash
 uv run python get_refresh_token.py   # saves refresh_token to .dlt/secrets.toml; move it too
-uv run python spotify_pipeline.py    # named destination "playground": DuckDB locally
+uv run python spotify_pipeline.py    # DuckDB locally; the playground on dltHub (destinations.py)
 SPOTIFY_DESTINATION=snowflake uv run python spotify_pipeline.py
 ```
 

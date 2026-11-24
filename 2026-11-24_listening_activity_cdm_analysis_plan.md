@@ -3,7 +3,7 @@
 ## Connection
 pipeline: listening_activity_cdm
 dataset: listening_activity
-destination: playground
+destination: duckdb locally, playground on dltHub (destinations.py)
 
 ## Profile Summary
 | table | rows | key columns | notes |

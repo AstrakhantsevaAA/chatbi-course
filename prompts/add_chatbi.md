@@ -56,10 +56,10 @@ PLAN PROMPT (system prompt = these rules + gate.context(gate.load_cdm()))
   turns with the new question.
 
 RUN
-- dlt.attach("listening_activity_cdm", destination="playground",
-  dataset_name="listening_activity").dataset()(sql).df(). Explicit destination and
-  dataset are required on dltHub, where a run has no local pipeline state. The app
-  runs on the read-only access profile there.
+- cdm_dataset()(sql).df() from destinations.py: duckdb on the local dev profile,
+  playground on dltHub, always with an explicit destination and dataset, because a
+  dltHub run has no local pipeline state. The app runs on the read-only access
+  profile there.
 
 ANSWER PROMPT
 - Input: question, metrics, assumptions, the first 20 rows, the row count (JSON).

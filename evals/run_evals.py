@@ -66,7 +66,10 @@ def expected_value(sql: str | None) -> float | None:
         return None
     if sql.startswith("metric:"):
         sql = metric_sql(sql.removeprefix("metric:"))
-    value = dlt.dataset("playground", "listening_activity")(sql).fetchone()[0]
+    sys.path.insert(0, str(ROOT))
+    from destinations import cdm_dataset
+
+    value = cdm_dataset()(sql).fetchone()[0]
     return float(value) if value is not None else 0.0
 
 

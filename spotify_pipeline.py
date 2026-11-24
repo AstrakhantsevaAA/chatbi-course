@@ -1,7 +1,7 @@
 """Load your Spotify listening data with dlt into any destination.
 
-Run `uv run python spotify_pipeline.py`. The named destination "playground" is
-DuckDB locally and managed storage on dltHub; override it with
+Run `uv run python spotify_pipeline.py`. It writes DuckDB locally and the
+dltHub playground in a deployed job (see destinations.py); override it with
 `SPOTIFY_DESTINATION=snowflake`. Plays load incrementally because the API
 keeps only your last 50 plays.
 """
@@ -15,6 +15,8 @@ from dlt.sources.helpers.rest_client import RESTClient
 from dlt.sources.helpers.rest_client.auth import OAuth2ClientCredentials
 from dlt.sources.helpers.rest_client.paginators import JSONLinkPaginator
 from dlt.sources.rest_api import RESTAPIConfig, rest_api_resources
+
+from destinations import destination
 
 BASE_URL = "https://api.spotify.com/v1/"
 TOKEN_URL = "https://accounts.spotify.com/api/token"
@@ -158,7 +160,7 @@ def top_items(auth: OAuth2ClientCredentials) -> Iterator[dict[str, Any]]:
 def main() -> None:
     pipeline = dlt.pipeline(
         pipeline_name="spotify_pipeline",
-        destination=os.getenv("SPOTIFY_DESTINATION", "playground"),
+        destination=destination(),
         dataset_name="spotify_raw",
     )
     load_info = pipeline.run(spotify_source())
