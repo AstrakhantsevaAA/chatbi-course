@@ -1,6 +1,7 @@
 """My music history: a dltHub data app over years of library data, no plays.
 
 Run `uv run marimo run my_music_history.py` after the CDM is built.
+Recent plays come last, because they cover only the days since the first load.
 Built with the AI Harness data-exploration toolkit from the history analysis plan.
 """
 
@@ -347,6 +348,106 @@ def _(alt, df_h9):
             color=alt.Color("measure:N", title=None),
             tooltip=["year_liked:O", "measure:N", alt.Tooltip("share:Q", format=".0%")]
         ).properties(title="Explicit songs and singles among what I liked each year")
+    )
+    _chart
+    return
+
+
+@app.cell
+def _(dataset, mo):
+    _r = dataset("""
+        SELECT COUNT(play_sk) AS plays, SUM(duration_ms) / 60000.0 AS listening_minutes,
+               MIN(played_at) AS data_from, MAX(played_at) AS data_through
+        FROM fact_play
+    """).df().iloc[0]
+    mo.vstack([
+        mo.md("## Recent listening"),
+        mo.md(f"Plays from **{_r.data_from:%Y-%m-%d}** to **{_r.data_through:%Y-%m-%d}** only: "
+              "Spotify keeps the last 50 plays, and the history grows with every scheduled load. "
+              "Hours are in UTC."),
+        mo.hstack([
+            mo.stat(value=f"{_r.plays:,}", label="Plays"),
+            mo.stat(value=f"{_r.listening_minutes:,.0f}", label="Listening minutes"),
+        ], justify="start"),
+    ])
+    return
+
+
+@app.cell
+def _(dataset):
+    df_r1 = dataset("""
+        SELECT a.artist_name, COUNT(p.play_sk) AS plays
+        FROM fact_play p
+        JOIN bridge_track_artist b ON p.track_sk = b.track_sk
+        JOIN dim_artist a ON b.artist_sk = a.artist_sk
+        GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+    """).df()
+    return (df_r1,)
+
+
+@app.cell
+def _(alt, df_r1):
+    _chart = (
+        alt.Chart(df_r1).mark_bar().encode(
+            x=alt.X("plays:Q", title="Plays"),
+            y=alt.Y("artist_name:N", sort="-x", title=None),
+            tooltip=["artist_name:N", "plays:Q"]
+        ).properties(title="Top 10 artists by plays")
+    )
+    _chart
+    return
+
+
+@app.cell
+def _(dataset):
+    df_r2 = dataset("""
+        SELECT ISODOW(played_at) AS weekday_no, DAYNAME(played_at) AS weekday,
+               EXTRACT(HOUR FROM played_at) AS hour_utc, COUNT(play_sk) AS plays
+        FROM fact_play GROUP BY 1, 2, 3 ORDER BY 1, 3
+    """).df()
+    return (df_r2,)
+
+
+@app.cell
+def _(alt, df_r2):
+    _chart = (
+        alt.Chart(df_r2).mark_rect().encode(
+            x=alt.X("hour_utc:O", title="Hour (UTC)"),
+            y=alt.Y("weekday:N", sort=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], title=None),
+            color=alt.Color("plays:Q", title="Plays"),
+            tooltip=["weekday:N", "hour_utc:O", "plays:Q"]
+        ).properties(title="When I listen")
+    )
+    _chart
+    return
+
+
+@app.cell
+def _(dataset):
+    df_r3 = dataset("""
+        SELECT p.context_type,
+               COALESCE(pl.playlist_name, al.album_name, ar.artist_name,
+                        CASE p.context_type WHEN 'playlist' THEN 'A playlist not in my library'
+                             WHEN 'UNKNOWN' THEN 'No context (search or queue)' ELSE 'Other' END) AS context_name,
+               COUNT(p.play_sk) AS plays
+        FROM fact_play p
+        LEFT JOIN dim_playlist pl ON p.context_type = 'playlist' AND pl.source_id = SPLIT_PART(p.context_uri, ':', 3)
+        LEFT JOIN dim_album al ON p.context_type = 'album' AND al.source_id = SPLIT_PART(p.context_uri, ':', 3)
+        LEFT JOIN dim_artist ar ON p.context_type = 'artist' AND ar.source_id = SPLIT_PART(p.context_uri, ':', 3)
+        GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 10
+    """).df()
+    return (df_r3,)
+
+
+@app.cell
+def _(alt, df_r3):
+    _chart = (
+        alt.Chart(df_r3).mark_bar().encode(
+            x=alt.X("plays:Q", title="Plays"),
+            y=alt.Y("context_name:N", sort="-x", title=None),
+            color=alt.Color("context_type:N", title="Context"),
+            tooltip=["context_name:N", "context_type:N", "plays:Q"]
+        ).properties(title="Top listening contexts")
     )
     _chart
     return

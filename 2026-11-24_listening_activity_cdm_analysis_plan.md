@@ -3,71 +3,225 @@
 ## Connection
 pipeline: listening_activity_cdm
 dataset: listening_activity
-destination: duckdb
+destination: playground
 
 ## Profile Summary
 | table | rows | key columns | notes |
 |-------|------|-------------|-------|
-| fact_play | 50 | played_at, track_sk, context_type, duration_ms | temporal: played_at; history starts at first load |
-| fact_saved_track | 377 | track_sk, added_at | temporal: added_at |
-| fact_top_item | 272 | snapshot_date, item_type, time_range, rank | one snapshot per load day |
-| dim_artist | 301 | artist_name | no genres (Spotify Development Mode) |
-| bridge_track_artist | 829 | track_sk, artist_sk | many-to-many track to artist |
+| fact_saved_track | 377 | track_sk, added_at | temporal: added_at, 2020-08 to 2026-10 |
+| fact_playlist_item | 466 | playlist_sk, track_sk, added_at | temporal: added_at, 2024-01 to today |
+| fact_saved_album | 11 | album_sk, artist_sk, added_at | temporal: added_at, 2021-04 to 2025-11 |
+| fact_top_item | 273 | time_range, rank | Spotify's own rankings: ~4 weeks, ~6 months, ~1 year |
+| dim_album | — | release_year | 1972 to 2026 |
 
-Charts reuse the metric formulas in `.schema/listening_activity/ontology.ison`, so the report and the agent agree.
+Sections 1–5 use no plays and cover years. The last section, Recent listening, uses plays since the first load.
 
 ## Questions
-1. [x] How much do I listen each day? → Chart 1
-2. [x] Which artists do I play most? → Chart 2
-3. [x] Do I listen from playlists, albums, or artist pages? → Chart 3
-4. [x] How has my saved library grown? → Chart 4
-5. [x] How many saved tracks have I forgotten? → Chart 5
-6. [x] How do my long-term top artists rank now? → Chart 6
+1. [x] How has my library of liked songs grown since 2020? → Chart 1
+2. [x] When did I add tracks to my playlists? → Chart 2
+3. [x] Which artists have the most liked songs? → Chart 3
+4. [x] How many new artists did I discover each year? → Chart 4
+5. [x] From which decades is the music I like? → Chart 5
+6. [x] Did the era of what I like change over the years? → Chart 6
+7. [x] Do I like the songs of the artists Spotify says I play most? → Chart 7
+8. [x] How much do my top artists overlap across time ranges? → Chart 8
+9. [x] Did my taste get more explicit, or more single-driven? → Chart 9
 
-7. [x] At what hours and on which days do I listen? → Chart 7
-8. [x] Which playlists, albums, and artist pages do I play from? → Chart 8
-9. [x] How old is the music I play and save? → Chart 9
-10. [x] Do I save music when it comes out, or years later? → Chart 10
-11. [x] How much of my listening goes to my top artists? → Chart 11
-12. [x] Do I listen to singles or albums? → Chart 12
-13. [x] How much do my top artists overlap across time ranges? → Chart 13
-14. [x] Which artists are new in my top, and which faded? → Chart 14
-15. [x] How have my playlists grown over time? → Chart 15
-16. [x] Which artists dominate my liked songs? → Chart 16
-17. [x] Which artists dominate my saved albums? → Chart 17
-18. [x] How big are my playlists, and which are mine? → Chart 18
+10. [x] Which artists did I play most recently? → Chart 10
+11. [x] When do I listen? → Chart 11
+12. [x] Where do my plays come from? → Chart 12
 
 ## Data Gaps
-Genre: Spotify returns no artist genres for Development Mode apps, so there is no genre chart.
-Playlist names for plays from playlists I do not follow: needs GET /playlists/{id}, not loaded.
-Real listening time and skips: only in Spotify's Extended streaming history export.
+Real listening time, skips, and lifetime plays: only in Spotify's Extended streaming history export.
 
-## Chart 1: Listening minutes per day
-question: How much do I listen each day?
-type: line
-x: fact_play.played_date (daily)
-y: listening_minutes metric
-source: fact_play
+## Chart 1: Liked songs per month
+question: How has my library of liked songs grown since 2020?
+section: How my library grew
 
 ```sql
-SELECT played_date AS day, SUM(duration_ms) / 60000.0 AS listening_minutes, COUNT(play_sk) AS plays
-FROM fact_play GROUP BY 1 ORDER BY 1
+SELECT DATE_TRUNC('month', added_at) AS month, COUNT(saved_track_sk) AS liked,
+       SUM(COUNT(saved_track_sk)) OVER (ORDER BY DATE_TRUNC('month', added_at)) AS library_size
+FROM fact_saved_track GROUP BY 1 ORDER BY 1
 ```
 
 ```altair
-alt.Chart(df).mark_line(point=True).encode(
-    x=alt.X("day:T", title="Day"),
-    y=alt.Y("listening_minutes:Q", title="Listening minutes"),
-    tooltip=["day:T", alt.Tooltip("listening_minutes:Q", format=".0f"), "plays:Q"]
-).properties(title="Listening minutes per day")
+alt.layer(
+    alt.Chart(df).mark_bar(opacity=0.5).encode(
+        x=alt.X("month:T", title="Month"), y=alt.Y("liked:Q", title="Liked that month")),
+    alt.Chart(df).mark_line(color="#d62728").encode(
+        x="month:T", y=alt.Y("library_size:Q", title="Library size")),
+).resolve_scale(y="independent").encode(
+    tooltip=["month:T", "liked:Q", "library_size:Q"]
+).properties(title="Liked songs per month, and library size")
 ```
 
-## Chart 2: Top 10 artists by plays
-question: Which artists do I play most?
-type: bar
-x: dim_artist.artist_name
-y: plays metric
-source: fact_play + bridge_track_artist + dim_artist
+## Chart 2: Playlist additions
+question: When did I add tracks to my playlists?
+section: How my library grew
+
+```sql
+SELECT DATE_TRUNC('quarter', i.added_at) AS quarter, pl.playlist_name, COUNT(i.playlist_item_sk) AS added
+FROM fact_playlist_item i JOIN dim_playlist pl ON i.playlist_sk = pl.playlist_sk
+WHERE i.added_at IS NOT NULL GROUP BY 1, 2 ORDER BY 1
+```
+
+```altair
+alt.Chart(df).mark_bar().encode(
+    x=alt.X("quarter:T", title="Quarter"),
+    y=alt.Y("added:Q", title="Tracks added"),
+    color=alt.Color("playlist_name:N", title="Playlist"),
+    tooltip=["quarter:T", "playlist_name:N", "added:Q"]
+).properties(title="Tracks added to playlists per quarter")
+```
+
+## Chart 3: Top 15 artists in my library
+question: Which artists have the most liked songs?
+section: Who I love
+
+```sql
+SELECT a.artist_name, COUNT(DISTINCT s.track_sk) AS liked_songs,
+       MIN(CAST(s.added_at AS DATE)) AS first_liked
+FROM fact_saved_track s JOIN bridge_track_artist b ON s.track_sk = b.track_sk JOIN dim_artist a ON b.artist_sk = a.artist_sk GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 15
+```
+
+```altair
+alt.Chart(df).mark_bar().encode(
+    x=alt.X("liked_songs:Q", title="Liked songs"),
+    y=alt.Y("artist_name:N", sort="-x", title=None),
+    tooltip=["artist_name:N", "liked_songs:Q", "first_liked:T"]
+).properties(title="Top 15 artists in my liked songs")
+```
+
+## Chart 4: New artists per year
+question: How many new artists did I discover each year?
+section: Who I love
+
+```sql
+WITH first_like AS (
+  SELECT b.artist_sk, MIN(EXTRACT(YEAR FROM s.added_at)) AS first_year
+  FROM fact_saved_track s JOIN bridge_track_artist b ON s.track_sk = b.track_sk GROUP BY 1)
+SELECT CAST(first_year AS VARCHAR) AS year, COUNT(*) AS new_artists FROM first_like GROUP BY 1 ORDER BY 1
+```
+
+```altair
+alt.Chart(df).mark_bar().encode(
+    x=alt.X("year:O", title="Year of first liked song"),
+    y=alt.Y("new_artists:Q", title="New artists"),
+    tooltip=["year:O", "new_artists:Q"]
+).properties(title="New artists in my library per year")
+```
+
+## Chart 5: Liked songs by release decade
+question: From which decades is the music I like?
+section: What era I live in
+
+```sql
+SELECT CAST(CAST(FLOOR(a.release_year / 10) * 10 AS INTEGER) AS VARCHAR) || 's' AS decade, COUNT(s.saved_track_sk) AS liked_songs
+FROM fact_saved_track s JOIN dim_track t ON s.track_sk = t.track_sk JOIN dim_album a ON t.album_sk = a.album_sk
+WHERE a.release_year IS NOT NULL GROUP BY 1 ORDER BY 1
+```
+
+```altair
+alt.Chart(df).mark_bar().encode(
+    x=alt.X("decade:O", title="Release decade"),
+    y=alt.Y("liked_songs:Q", title="Liked songs"),
+    tooltip=["decade:O", "liked_songs:Q"]
+).properties(title="Liked songs by release decade")
+```
+
+## Chart 6: Year liked × release decade
+question: Did the era of what I like change over the years?
+section: What era I live in
+
+```sql
+SELECT CAST(EXTRACT(YEAR FROM s.added_at) AS VARCHAR) AS year_liked,
+       CAST(CAST(FLOOR(a.release_year / 10) * 10 AS INTEGER) AS VARCHAR) || 's' AS decade, COUNT(s.saved_track_sk) AS liked_songs
+FROM fact_saved_track s JOIN dim_track t ON s.track_sk = t.track_sk JOIN dim_album a ON t.album_sk = a.album_sk
+WHERE a.release_year IS NOT NULL GROUP BY 1, 2 ORDER BY 1, 2
+```
+
+```altair
+alt.Chart(df).mark_rect().encode(
+    x=alt.X("year_liked:O", title="Year liked"),
+    y=alt.Y("decade:O", sort="descending", title="Release decade"),
+    color=alt.Color("liked_songs:Q", title="Liked songs"),
+    tooltip=["year_liked:O", "decade:O", "liked_songs:Q"]
+).properties(title="What I liked each year, by release decade")
+```
+
+## Chart 7: Spotify's top artists vs my library
+question: Do I like the songs of the artists Spotify says I play most?
+section: What Spotify sees
+
+```sql
+WITH liked AS (
+  SELECT b.artist_sk, COUNT(DISTINCT s.track_sk) AS liked_songs
+  FROM fact_saved_track s JOIN bridge_track_artist b ON s.track_sk = b.track_sk GROUP BY 1)
+SELECT t.rank, a.artist_name, COALESCE(l.liked_songs, 0) AS liked_songs
+FROM fact_top_item t JOIN dim_artist a ON t.artist_sk = a.artist_sk
+LEFT JOIN liked l ON l.artist_sk = t.artist_sk
+WHERE t.item_type = 'artists' AND t.time_range = 'long_term'
+  AND t.snapshot_date = (SELECT MAX(snapshot_date) FROM fact_top_item)
+ORDER BY t.rank LIMIT 15
+```
+
+```altair
+alt.Chart(df).mark_bar().encode(
+    x=alt.X("liked_songs:Q", title="Liked songs by this artist"),
+    y=alt.Y("artist_name:N", sort=alt.EncodingSortField("rank"), title="Spotify long-term top 15 (about 1 year)"),
+    tooltip=["rank:Q", "artist_name:N", "liked_songs:Q"]
+).properties(title="Spotify's long-term top artists, and how many of their songs I liked")
+```
+
+## Chart 8: Taste stability
+question: How much do my top artists overlap across time ranges?
+section: What Spotify sees
+
+```sql
+WITH latest AS (
+  SELECT time_range, artist_sk FROM fact_top_item
+  WHERE item_type = 'artists' AND snapshot_date = (SELECT MAX(snapshot_date) FROM fact_top_item))
+SELECT x.time_range AS range_a, y.time_range AS range_b,
+       COUNT(DISTINCT CASE WHEN x.artist_sk = y.artist_sk THEN x.artist_sk END) * 1.0
+         / COUNT(DISTINCT x.artist_sk) AS overlap
+FROM latest x CROSS JOIN latest y GROUP BY 1, 2 ORDER BY 1, 2
+```
+
+```altair
+alt.Chart(df).mark_rect().encode(
+    x=alt.X("range_b:N", sort=["short_term", "medium_term", "long_term"], title="Also in"),
+    y=alt.Y("range_a:N", sort=["short_term", "medium_term", "long_term"], title="Top artists of"),
+    color=alt.Color("overlap:Q", scale=alt.Scale(domain=[0, 1]), title="Overlap"),
+    tooltip=["range_a:N", "range_b:N", alt.Tooltip("overlap:Q", format=".0%")]
+).properties(title="Top-artist overlap: 4 weeks, 6 months, 1 year")
+```
+
+## Chart 9: Library character by year
+question: Did my taste get more explicit, or more single-driven?
+section: How my taste changed
+
+```sql
+SELECT CAST(EXTRACT(YEAR FROM s.added_at) AS VARCHAR) AS year_liked,
+       AVG(CASE WHEN t.is_explicit THEN 1.0 ELSE 0 END) AS explicit_share,
+       AVG(t.duration_ms) / 60000.0 AS avg_minutes,
+       AVG(CASE WHEN a.album_type = 'single' THEN 1.0 ELSE 0 END) AS singles_share
+FROM fact_saved_track s JOIN dim_track t ON s.track_sk = t.track_sk JOIN dim_album a ON t.album_sk = a.album_sk
+GROUP BY 1 ORDER BY 1
+```
+
+```altair
+alt.Chart(df).transform_fold(
+    ["explicit_share", "singles_share"], as_=["measure", "share"]
+).mark_line(point=True).encode(
+    x=alt.X("year_liked:O", title="Year liked"),
+    y=alt.Y("share:Q", axis=alt.Axis(format="%"), title="Share of liked songs"),
+    color=alt.Color("measure:N", title=None),
+    tooltip=["year_liked:O", "measure:N", alt.Tooltip("share:Q", format=".0%")]
+).properties(title="Explicit songs and singles among what I liked each year")
+```
+
+## Chart 10: Top 10 artists recently
+section: Recent listening
 
 ```sql
 SELECT a.artist_name, COUNT(p.play_sk) AS plays
@@ -85,103 +239,8 @@ alt.Chart(df).mark_bar().encode(
 ).properties(title="Top 10 artists by plays")
 ```
 
-## Chart 3: Where my plays come from
-question: Do I listen from playlists, albums, or artist pages?
-type: bar
-x: fact_play.context_type
-y: plays metric
-source: fact_play
-
-```sql
-SELECT context_type, COUNT(play_sk) AS plays FROM fact_play GROUP BY 1 ORDER BY 2 DESC
-```
-
-```altair
-alt.Chart(df).mark_bar().encode(
-    x=alt.X("context_type:N", sort="-y", title="Context"),
-    y=alt.Y("plays:Q", title="Plays"),
-    tooltip=["context_type:N", "plays:Q"]
-).properties(title="Where my plays come from")
-```
-
-## Chart 4: Library growth
-question: How has my saved library grown?
-type: line
-x: fact_saved_track.added_at (monthly)
-y: running total of saved_tracks
-source: fact_saved_track
-
-```sql
-SELECT DATE_TRUNC('month', added_at) AS month, COUNT(saved_track_sk) AS saved,
-       SUM(COUNT(saved_track_sk)) OVER (ORDER BY DATE_TRUNC('month', added_at)) AS total_saved
-FROM fact_saved_track GROUP BY 1 ORDER BY 1
-```
-
-```altair
-alt.Chart(df).mark_area(opacity=0.6).encode(
-    x=alt.X("month:T", title="Month"),
-    y=alt.Y("total_saved:Q", title="Saved tracks (running total)"),
-    tooltip=["month:T", "saved:Q", "total_saved:Q"]
-).properties(title="Library growth")
-```
-
-## Chart 5: Forgotten favorites
-question: How many saved tracks have I forgotten?
-type: bar
-x: forgotten_favorites filter (forgotten vs still in rotation)
-y: saved_tracks metric
-source: fact_saved_track
-
-```sql
-SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM fact_play p WHERE p.track_sk = s.track_sk AND p.played_at >= CURRENT_DATE - INTERVAL '30' DAY) AND NOT EXISTS (SELECT 1 FROM fact_top_item t WHERE t.track_sk = s.track_sk AND t.time_range = 'short_term' AND t.snapshot_date = (SELECT MAX(snapshot_date) FROM fact_top_item)) THEN 'forgotten' ELSE 'still in rotation' END AS status,
-       COUNT(s.saved_track_sk) AS saved_tracks
-FROM fact_saved_track s GROUP BY 1
-```
-
-```altair
-alt.Chart(df).mark_bar().encode(
-    x=alt.X("saved_tracks:Q", title="Saved tracks"),
-    y=alt.Y("status:N", title=None),
-    color=alt.Color("status:N", legend=None),
-    tooltip=["status:N", "saved_tracks:Q"]
-).properties(title="Forgotten favorites vs tracks still in rotation")
-```
-
-## Chart 6: Taste shift
-question: How do my long-term top artists rank now?
-type: dot plot
-x: time_range rank per artist
-y: rank (1 = top)
-source: fact_top_item + dim_artist
-
-```sql
-SELECT a.artist_name,
-       MAX(CASE WHEN t.time_range = 'long_term' THEN t.rank END) AS long_term_rank,
-       MAX(CASE WHEN t.time_range = 'medium_term' THEN t.rank END) AS medium_term_rank,
-       MAX(CASE WHEN t.time_range = 'short_term' THEN t.rank END) AS short_term_rank
-FROM fact_top_item t JOIN dim_artist a ON t.artist_sk = a.artist_sk
-WHERE t.item_type = 'artists' AND t.snapshot_date = (SELECT MAX(snapshot_date) FROM fact_top_item)
-GROUP BY 1
-HAVING MAX(CASE WHEN t.time_range = 'long_term' THEN t.rank END) <= 10
-ORDER BY long_term_rank
-```
-
-```altair
-alt.Chart(df).transform_fold(
-    ["long_term_rank", "medium_term_rank", "short_term_rank"], as_=["time_range", "rank"]
-).mark_point(filled=True, size=90).encode(
-    x=alt.X("rank:Q", scale=alt.Scale(reverse=True), title="Rank (1 = top)"),
-    y=alt.Y("artist_name:N", sort=alt.EncodingSortField("long_term_rank"), title=None),
-    color=alt.Color("time_range:N", title="Time range"),
-    tooltip=["artist_name:N", "time_range:N", "rank:Q"]
-).properties(title="Top 10 long-term artists: rank by time range")
-```
-## Chart 7: When I listen
-question: At what hours and on which days do I listen?
-type: heatmap
-x: hour (UTC) × weekday
-y: plays metric
-source: fact_play
+## Chart 11: When I listen
+section: Recent listening
 
 ```sql
 SELECT ISODOW(played_at) AS weekday_no, DAYNAME(played_at) AS weekday,
@@ -198,12 +257,8 @@ alt.Chart(df).mark_rect().encode(
 ).properties(title="When I listen")
 ```
 
-## Chart 8: Top listening contexts
-question: Which playlists, albums, and artist pages do I play from?
-type: bar
-x: context name
-y: plays metric
-source: fact_play + dim_playlist / dim_album / dim_artist
+## Chart 12: Top listening contexts
+section: Recent listening
 
 ```sql
 SELECT p.context_type,
@@ -227,281 +282,40 @@ alt.Chart(df).mark_bar().encode(
 ).properties(title="Top listening contexts")
 ```
 
-## Chart 9: Release years
-question: How old is the music I play and save?
-type: bar
-x: dim_album.release_year
-y: count of tracks
-source: fact_play, fact_saved_track + dim_album
+## Table: Top 3 artists of each year (by songs liked that year)
+section: Who I love
 
 ```sql
-SELECT 'plays' AS source, a.release_year, COUNT(p.play_sk) AS tracks
-FROM fact_play p JOIN dim_album a ON p.album_sk = a.album_sk
-WHERE a.release_year IS NOT NULL GROUP BY 1, 2
-UNION ALL
-SELECT 'saved tracks', a.release_year, COUNT(s.saved_track_sk)
-FROM fact_saved_track s JOIN dim_track t ON s.track_sk = t.track_sk
-JOIN dim_album a ON t.album_sk = a.album_sk
-WHERE a.release_year IS NOT NULL GROUP BY 1, 2
-ORDER BY 2
+WITH yearly AS (
+  SELECT EXTRACT(YEAR FROM s.added_at) AS year, a.artist_name, COUNT(DISTINCT s.track_sk) AS liked_songs
+  FROM fact_saved_track s JOIN bridge_track_artist b ON s.track_sk = b.track_sk JOIN dim_artist a ON b.artist_sk = a.artist_sk GROUP BY 1, 2),
+ranked AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY year ORDER BY liked_songs DESC, artist_name) AS rn FROM yearly)
+SELECT CAST(year AS VARCHAR) AS year, artist_name, liked_songs, rn AS rank FROM ranked WHERE rn <= 3 ORDER BY year, rn
 ```
 
-```altair
-alt.Chart(df).mark_bar(opacity=0.8).encode(
-    x=alt.X("release_year:O", title="Release year"),
-    y=alt.Y("tracks:Q", title="Tracks"),
-    color=alt.Color("source:N", title=None),
-    xOffset="source:N",
-    tooltip=["source:N", "release_year:O", "tracks:Q"]
-).properties(title="Release years: what I play vs what I save")
-```
-
-## Chart 10: New music or old?
-question: Do I save music when it comes out, or years later?
-type: bar
-x: years from release to save (bucket)
-y: saved_tracks metric
-source: fact_saved_track + dim_album
+## Table: Spotify's long-term top 10 tracks (about 1 year)
+section: What Spotify sees
 
 ```sql
-SELECT CASE
-         WHEN EXTRACT(YEAR FROM s.added_at) - a.release_year <= 0 THEN '1 · release year'
-         WHEN EXTRACT(YEAR FROM s.added_at) - a.release_year <= 2 THEN '2 · 1–2 years later'
-         WHEN EXTRACT(YEAR FROM s.added_at) - a.release_year <= 5 THEN '3 · 3–5 years later'
-         WHEN EXTRACT(YEAR FROM s.added_at) - a.release_year <= 10 THEN '4 · 6–10 years later'
-         ELSE '5 · 10+ years later' END AS saved_when,
-       COUNT(s.saved_track_sk) AS saved_tracks
-FROM fact_saved_track s JOIN dim_track t ON s.track_sk = t.track_sk
-JOIN dim_album a ON t.album_sk = a.album_sk
-WHERE a.release_year IS NOT NULL GROUP BY 1 ORDER BY 1
+SELECT t.rank, d.track_name, ar.artist_name,
+       CASE WHEN s.track_sk IS NOT NULL THEN 'liked' ELSE 'not liked' END AS in_library
+FROM fact_top_item t JOIN dim_track d ON t.track_sk = d.track_sk
+LEFT JOIN bridge_track_artist b ON b.track_sk = t.track_sk AND b.artist_position = 0
+LEFT JOIN dim_artist ar ON ar.artist_sk = b.artist_sk
+LEFT JOIN fact_saved_track s ON s.track_sk = t.track_sk
+WHERE t.item_type = 'tracks' AND t.time_range = 'long_term'
+  AND t.snapshot_date = (SELECT MAX(snapshot_date) FROM fact_top_item)
+ORDER BY t.rank LIMIT 10
 ```
 
-```altair
-alt.Chart(df).mark_bar().encode(
-    x=alt.X("saved_when:N", title="When I saved it"),
-    y=alt.Y("saved_tracks:Q", title="Saved tracks"),
-    tooltip=["saved_when:N", "saved_tracks:Q"]
-).properties(title="When I save music, relative to its release")
-```
-
-## Chart 11: Artist concentration
-question: How much of my listening goes to my top artists?
-type: line
-x: artist rank
-y: cumulative share of plays
-source: fact_play + bridge_track_artist + dim_artist
+## Header tiles
 
 ```sql
-WITH by_artist AS (
-  SELECT a.artist_name, COUNT(p.play_sk) AS plays
-  FROM fact_play p JOIN bridge_track_artist b ON p.track_sk = b.track_sk
-  JOIN dim_artist a ON b.artist_sk = a.artist_sk GROUP BY 1)
-SELECT artist_name, plays,
-       ROW_NUMBER() OVER (ORDER BY plays DESC, artist_name) AS artist_rank,
-       SUM(plays) OVER (ORDER BY plays DESC, artist_name) * 1.0 / SUM(plays) OVER () AS cumulative_share
-FROM by_artist ORDER BY artist_rank
+SELECT
+  (SELECT COUNT(*) FROM fact_saved_track) AS liked_songs,
+  (SELECT MIN(added_at) FROM fact_saved_track) AS liking_since,
+  (SELECT COUNT(DISTINCT b.artist_sk) FROM fact_saved_track s JOIN bridge_track_artist b ON s.track_sk = b.track_sk) AS artists,
+  (SELECT COUNT(*) FROM fact_saved_album) AS saved_albums,
+  (SELECT COUNT(*) FROM fact_playlist_item) AS playlist_additions,
+  (SELECT MIN(a.release_year) FROM fact_saved_track s JOIN dim_track t ON s.track_sk = t.track_sk JOIN dim_album a ON t.album_sk = a.album_sk) AS oldest_release
 ```
-
-```altair
-alt.Chart(df).mark_line(point=True).encode(
-    x=alt.X("artist_rank:Q", title="Artist rank"),
-    y=alt.Y("cumulative_share:Q", axis=alt.Axis(format="%"), title="Share of plays (cumulative)"),
-    tooltip=["artist_rank:Q", "artist_name:N", "plays:Q", alt.Tooltip("cumulative_share:Q", format=".0%")]
-).properties(title="Artist concentration")
-```
-
-## Chart 12: Singles vs albums
-question: Do I listen to singles or albums?
-type: normalized bar
-x: dim_album.album_type
-y: share of tracks
-source: fact_play, fact_saved_track + dim_album
-
-```sql
-SELECT 'plays' AS source, a.album_type, COUNT(p.play_sk) AS tracks
-FROM fact_play p JOIN dim_album a ON p.album_sk = a.album_sk GROUP BY 1, 2
-UNION ALL
-SELECT 'saved tracks', a.album_type, COUNT(s.saved_track_sk)
-FROM fact_saved_track s JOIN dim_track t ON s.track_sk = t.track_sk
-JOIN dim_album a ON t.album_sk = a.album_sk GROUP BY 1, 2
-```
-
-```altair
-alt.Chart(df).mark_bar().encode(
-    x=alt.X("tracks:Q", stack="normalize", axis=alt.Axis(format="%"), title="Share"),
-    y=alt.Y("source:N", title=None),
-    color=alt.Color("album_type:N", title="Release type"),
-    tooltip=["source:N", "album_type:N", "tracks:Q"]
-).properties(title="Singles vs albums")
-```
-
-## Chart 13: Taste stability
-question: How much do my top artists overlap across time ranges?
-type: heatmap
-x: time range × time range
-y: overlap share
-source: fact_top_item
-
-```sql
-WITH latest AS (
-  SELECT time_range, artist_sk FROM fact_top_item
-  WHERE item_type = 'artists' AND snapshot_date = (SELECT MAX(snapshot_date) FROM fact_top_item))
-SELECT x.time_range AS range_a, y.time_range AS range_b,
-       COUNT(DISTINCT CASE WHEN x.artist_sk = y.artist_sk THEN x.artist_sk END) * 1.0
-         / COUNT(DISTINCT x.artist_sk) AS overlap
-FROM latest x CROSS JOIN latest y GROUP BY 1, 2 ORDER BY 1, 2
-```
-
-```altair
-alt.Chart(df).mark_rect().encode(
-    x=alt.X("range_b:N", sort=["short_term", "medium_term", "long_term"], title="Also in"),
-    y=alt.Y("range_a:N", sort=["short_term", "medium_term", "long_term"], title="Top artists of"),
-    color=alt.Color("overlap:Q", scale=alt.Scale(domain=[0, 1]), title="Overlap"),
-    tooltip=["range_a:N", "range_b:N", alt.Tooltip("overlap:Q", format=".0%")]
-).properties(title="Taste stability: top-artist overlap")
-```
-
-## Chart 14: New and faded artists
-question: Which artists are new in my top, and which faded?
-type: bar
-x: artist
-y: rank (1 = top)
-source: fact_top_item + dim_artist
-
-```sql
-WITH latest AS (
-  SELECT t.time_range, t.rank, a.artist_name FROM fact_top_item t
-  JOIN dim_artist a ON t.artist_sk = a.artist_sk
-  WHERE t.item_type = 'artists' AND t.snapshot_date = (SELECT MAX(snapshot_date) FROM fact_top_item))
-SELECT 'new in my top' AS movement, s.artist_name, s.rank
-FROM latest s WHERE s.time_range = 'short_term' AND s.rank <= 15
-  AND s.artist_name NOT IN (SELECT artist_name FROM latest WHERE time_range = 'long_term')
-UNION ALL
-SELECT 'faded', l.artist_name, l.rank
-FROM latest l WHERE l.time_range = 'long_term' AND l.rank <= 15
-  AND l.artist_name NOT IN (SELECT artist_name FROM latest WHERE time_range = 'short_term')
-ORDER BY 1, 3
-```
-
-```altair
-alt.Chart(df).mark_bar().encode(
-    x=alt.X("rank:Q", scale=alt.Scale(reverse=True), title="Rank in its time range (1 = top)"),
-    y=alt.Y("artist_name:N", sort=alt.EncodingSortField("rank"), title=None),
-    color=alt.Color("movement:N", title=None),
-    row=alt.Row("movement:N", title=None),
-    tooltip=["movement:N", "artist_name:N", "rank:Q"]
-).resolve_scale(y="independent").properties(title="New in my top (short_term) and faded (long_term)")
-```
-
-## Chart 15: Playlist growth
-question: How have my playlists grown over time?
-type: line
-x: month
-y: running total of tracks
-source: fact_playlist_item + dim_playlist
-
-```sql
-SELECT pl.playlist_name, DATE_TRUNC('month', i.added_at) AS month,
-       SUM(COUNT(i.playlist_item_sk)) OVER (PARTITION BY pl.playlist_name ORDER BY DATE_TRUNC('month', i.added_at)) AS total_tracks
-FROM fact_playlist_item i JOIN dim_playlist pl ON i.playlist_sk = pl.playlist_sk
-WHERE i.added_at IS NOT NULL GROUP BY 1, 2 ORDER BY 1, 2
-```
-
-```altair
-alt.Chart(df).mark_line(point=True).encode(
-    x=alt.X("month:T", title="Month"),
-    y=alt.Y("total_tracks:Q", title="Tracks (running total)"),
-    color=alt.Color("playlist_name:N", title="Playlist"),
-    tooltip=["playlist_name:N", "month:T", "total_tracks:Q"]
-).properties(title="Playlist growth")
-```
-
-## Chart 16: Top 10 artists in my liked songs
-question: Which artists dominate my liked songs?
-type: bar
-x: count of distinct liked songs
-y: dim_artist.artist_name
-source: fact_saved_track + bridge_track_artist + dim_artist
-
-```sql
-SELECT a.artist_name, COUNT(DISTINCT s.track_sk) AS liked_songs
-FROM fact_saved_track s
-JOIN bridge_track_artist b ON s.track_sk = b.track_sk
-JOIN dim_artist a ON b.artist_sk = a.artist_sk
-GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 10
-```
-
-```altair
-alt.Chart(df).mark_bar().encode(
-    x=alt.X("liked_songs:Q", title="Liked songs"),
-    y=alt.Y("artist_name:N", sort="-x", title=None),
-    tooltip=["artist_name:N", "liked_songs:Q"]
-).properties(title="Top 10 artists in my liked songs")
-```
-
-## Chart 17: Top 10 artists in my saved albums
-question: Which artists dominate my saved albums?
-type: bar
-x: count of saved albums
-y: dim_artist.artist_name (main album artist)
-source: fact_saved_album + dim_artist
-
-```sql
-SELECT a.artist_name, COUNT(f.saved_album_sk) AS saved_albums
-FROM fact_saved_album f JOIN dim_artist a ON f.artist_sk = a.artist_sk
-GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 10
-```
-
-```altair
-alt.Chart(df).mark_bar().encode(
-    x=alt.X("saved_albums:Q", title="Saved albums"),
-    y=alt.Y("artist_name:N", sort="-x", title=None),
-    tooltip=["artist_name:N", "saved_albums:Q"]
-).properties(title="Top 10 artists in my saved albums")
-```
-
-## Chart 18: Playlists by size
-question: How big are my playlists, and which are mine?
-type: bar
-x: dim_playlist.items_total
-y: dim_playlist.playlist_name
-source: dim_playlist
-
-```sql
-SELECT playlist_name, items_total,
-       CASE WHEN is_mine THEN 'mine' WHEN is_collaborative THEN 'collaborative'
-            ELSE 'followed' END AS ownership
-FROM dim_playlist ORDER BY items_total DESC LIMIT 20
-```
-
-```altair
-alt.Chart(df).mark_bar().encode(
-    x=alt.X("items_total:Q", title="Tracks"),
-    y=alt.Y("playlist_name:N", sort="-x", title=None),
-    color=alt.Color("ownership:N", title=None),
-    tooltip=["playlist_name:N", "ownership:N", "items_total:Q"]
-).properties(title="My playlists and followed playlists, by size")
-```
-
-## Library tiles and recently saved albums
-question: What is in my library?
-type: stat tiles + table (10 most recently saved albums)
-source: fact_saved_track, fact_saved_album, dim_playlist, dim_album, dim_artist
-
-## Diversity tiles
-question: How varied is my listening?
-type: stat tiles
-source: fact_play + bridge_track_artist + dim_track
-
-```sql
-WITH by_artist AS (
-  SELECT b.artist_sk, COUNT(p.play_sk) AS plays FROM fact_play p
-  JOIN bridge_track_artist b ON p.track_sk = b.track_sk GROUP BY 1)
-SELECT (SELECT COUNT(*) FROM by_artist) AS distinct_artists,
-       (SELECT MAX(plays) * 1.0 / SUM(plays) FROM by_artist) AS top_artist_share,
-       (SELECT AVG(CASE WHEN n > 1 THEN 1.0 ELSE 0 END) FROM
-          (SELECT track_sk, COUNT(*) AS n FROM bridge_track_artist GROUP BY 1) c) AS collab_share,
-       (SELECT AVG(CASE WHEN t.is_explicit THEN 1.0 ELSE 0 END) FROM fact_play p
-          JOIN dim_track t ON p.track_sk = t.track_sk) AS explicit_share
-```
-

@@ -2,7 +2,6 @@
 
 from dlt.hub import run
 
-import listening_activity_cdm_dashboard
 import my_music_history
 from listening_jobs import build_cdm, ingest
 
@@ -17,6 +16,5 @@ __all__ = [
     "ingest",
     "build_cdm",
     "my_music_history",
-    "listening_activity_cdm_dashboard",
     "forgotten_favorites",
 ]
