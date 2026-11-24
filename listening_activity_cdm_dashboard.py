@@ -399,6 +399,31 @@ def _(alt, df_chart5):
 
 @app.cell
 def _(dataset):
+    df_chart16 = dataset("""
+        SELECT a.artist_name, COUNT(DISTINCT s.track_sk) AS liked_songs
+        FROM fact_saved_track s
+        JOIN bridge_track_artist b ON s.track_sk = b.track_sk
+        JOIN dim_artist a ON b.artist_sk = a.artist_sk
+        GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 10
+    """).df()
+    return (df_chart16,)
+
+
+@app.cell
+def _(alt, df_chart16):
+    _chart = (
+        alt.Chart(df_chart16).mark_bar().encode(
+            x=alt.X("liked_songs:Q", title="Liked songs"),
+            y=alt.Y("artist_name:N", sort="-x", title=None),
+            tooltip=["artist_name:N", "liked_songs:Q"]
+        ).properties(title="Top 10 artists in my liked songs")
+    )
+    _chart
+    return
+
+
+@app.cell
+def _(dataset):
     df_chart15 = dataset("""
         SELECT pl.playlist_name, DATE_TRUNC('month', i.added_at) AS month,
                SUM(COUNT(i.playlist_item_sk)) OVER (PARTITION BY pl.playlist_name ORDER BY DATE_TRUNC('month', i.added_at)) AS total_tracks

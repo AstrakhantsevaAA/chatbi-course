@@ -33,6 +33,7 @@ Charts reuse the metric formulas in `.schema/listening_activity/ontology.ison`, 
 13. [x] How much do my top artists overlap across time ranges? → Chart 13
 14. [x] Which artists are new in my top, and which faded? → Chart 14
 15. [x] How have my playlists grown over time? → Chart 15
+16. [x] Which artists dominate my liked songs? → Chart 16
 
 ## Data Gaps
 Genre: Spotify returns no artist genres for Development Mode apps, so there is no genre chart.
@@ -411,6 +412,29 @@ alt.Chart(df).mark_line(point=True).encode(
     color=alt.Color("playlist_name:N", title="Playlist"),
     tooltip=["playlist_name:N", "month:T", "total_tracks:Q"]
 ).properties(title="Playlist growth")
+```
+
+## Chart 16: Top 10 artists in my liked songs
+question: Which artists dominate my liked songs?
+type: bar
+x: count of distinct liked songs
+y: dim_artist.artist_name
+source: fact_saved_track + bridge_track_artist + dim_artist
+
+```sql
+SELECT a.artist_name, COUNT(DISTINCT s.track_sk) AS liked_songs
+FROM fact_saved_track s
+JOIN bridge_track_artist b ON s.track_sk = b.track_sk
+JOIN dim_artist a ON b.artist_sk = a.artist_sk
+GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 10
+```
+
+```altair
+alt.Chart(df).mark_bar().encode(
+    x=alt.X("liked_songs:Q", title="Liked songs"),
+    y=alt.Y("artist_name:N", sort="-x", title=None),
+    tooltip=["artist_name:N", "liked_songs:Q"]
+).properties(title="Top 10 artists in my liked songs")
 ```
 
 ## Diversity tiles
