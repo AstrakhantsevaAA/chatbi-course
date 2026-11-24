@@ -20,7 +20,7 @@ from dlt.sources.helpers.rest_client import RESTClient
 
 import spotify_pipeline
 
-DESTINATION = os.getenv("SPOTIFY_DESTINATION", "duckdb")
+DESTINATION = os.getenv("SPOTIFY_DESTINATION", "playground")
 
 
 def actions_pipeline() -> dlt.Pipeline:
@@ -55,8 +55,8 @@ def get(proposal_id: str) -> dict[str, Any]:
     raise SystemExit(f"No proposal with id {proposal_id}")
 
 
-def draft(path: Path) -> None:
-    payload = json.loads(path.read_text())
+def store_draft(payload: dict[str, Any]) -> str:
+    """Save a playlist draft and return its proposal id."""
     if not payload.get("name") or not payload.get("tracks"):
         raise SystemExit("A draft needs 'name' and a non-empty 'tracks' list")
     proposal = {
@@ -69,6 +69,11 @@ def draft(path: Path) -> None:
     }
     save(proposal)
     print(f"Draft {proposal['id']} saved: {payload['name']} with {len(payload['tracks'])} tracks")
+    return proposal["id"]
+
+
+def draft(path: Path) -> None:
+    store_draft(json.loads(path.read_text()))
 
 
 def list_proposals() -> None:

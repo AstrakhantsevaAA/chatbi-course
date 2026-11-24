@@ -1,6 +1,22 @@
-"""Deployment manifest — import the pipelines and notebooks you want to deploy and list them in __all__."""
+"""ChatBI course — Spotify listening data, report app, and a weekly drafting agent."""
 
-# from pipeline import my_pipeline
-# from notebook import my_notebook
+from dlt.hub import run
 
-__all__: list[str] = []
+import listening_activity_cdm_dashboard
+from listening_jobs import build_cdm, ingest, review_proposal, run_approved_actions
+
+forgotten_favorites = run.agent(
+    "agents/forgotten_favorites",
+    name="forgotten_favorites",
+    trigger="schedule:0 9 * * 1",
+    require={"profile": "access"},
+)
+
+__all__ = [
+    "ingest",
+    "build_cdm",
+    "listening_activity_cdm_dashboard",
+    "forgotten_favorites",
+    "review_proposal",
+    "run_approved_actions",
+]

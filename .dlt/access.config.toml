@@ -1,0 +1,3 @@
+# The read-only profile of the report app and the agent; it holds no Spotify secrets.
+[runtime]
+log_level = "WARNING"

@@ -21,7 +21,7 @@ def _():
 
 @app.cell
 def _(dlt):
-    pipeline = dlt.attach("listening_activity_cdm")
+    pipeline = dlt.attach("listening_activity_cdm", destination="playground", dataset_name="listening_activity")
     dataset = pipeline.dataset()
     return (dataset,)
 

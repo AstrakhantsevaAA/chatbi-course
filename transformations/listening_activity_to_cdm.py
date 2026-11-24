@@ -11,7 +11,7 @@ from pathlib import Path
 import dlt
 
 ROOT = Path(__file__).resolve().parents[1]
-DESTINATION = os.getenv("SPOTIFY_DESTINATION", "duckdb")
+DESTINATION = os.getenv("SPOTIFY_DESTINATION", "playground")
 UNKNOWN = "'UNKNOWN'"
 
 TRACK_SOURCES = """
@@ -88,6 +88,7 @@ def first_by_priority(sources: str, key: str) -> str:
 )
 def dim_track(dataset: dlt.Dataset):
     yield dataset(f"""
+        SELECT * FROM (
         SELECT MD5(track_id) AS track_sk, track_id AS source_id,
                'spotify_pipeline' AS source_pipeline, track_name, duration_ms, is_explicit, isrc,
                COALESCE(MD5(album_id), {UNKNOWN}) AS album_sk, spotify_url
@@ -95,6 +96,7 @@ def dim_track(dataset: dlt.Dataset):
         UNION ALL
         SELECT {UNKNOWN}, {UNKNOWN}, 'spotify_pipeline', 'Unknown track (local file)',
                NULL, NULL, NULL, {UNKNOWN}, NULL
+        ) u
     """)
 
 
@@ -104,6 +106,7 @@ def dim_track(dataset: dlt.Dataset):
 )
 def dim_album(dataset: dlt.Dataset):
     yield dataset(f"""
+        SELECT * FROM (
         SELECT MD5(album_id) AS album_sk, album_id AS source_id,
                'spotify_pipeline' AS source_pipeline, album_name, album_type, release_date,
                release_date_precision, CAST(SUBSTRING(release_date, 1, 4) AS BIGINT) AS release_year,
@@ -111,6 +114,7 @@ def dim_album(dataset: dlt.Dataset):
         FROM ({first_by_priority(ALBUM_SOURCES, "album_id")}) a
         UNION ALL
         SELECT {UNKNOWN}, {UNKNOWN}, 'spotify_pipeline', 'Unknown album', NULL, NULL, NULL, NULL, NULL
+        ) u
     """)
 
 
@@ -122,11 +126,13 @@ def dim_artist(dataset: dlt.Dataset):
         SELECT id, name, external_urls__spotify, 0 FROM top_items WHERE item_type = 'artists'
     """
     yield dataset(f"""
+        SELECT * FROM (
         SELECT MD5(artist_id) AS artist_sk, artist_id AS source_id,
                'spotify_pipeline' AS source_pipeline, artist_name, spotify_url
         FROM ({first_by_priority(artists, "artist_id")}) a
         UNION ALL
         SELECT {UNKNOWN}, {UNKNOWN}, 'spotify_pipeline', 'Unknown artist', NULL
+        ) u
     """)
 
 
