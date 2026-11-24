@@ -27,6 +27,8 @@ This prints every CDM table with column roles, every metric, and every entity. U
 
 - **Out of scope** (no entity or metric relates to it, for example the weather): say so in one
   sentence and stop. Do not query.
+- **A request to change data** (delete, update, insert, drop, create a playlist): refuse in one
+  sentence (you only read data), log status `rejected`, and stop. Do not query.
 - **Ambiguous** (two metrics or entities fit and give different numbers): ask one short clarifying
   question that names the options, and stop.
 - **Follow-up** ("and for last month?", "only playlists"): start from the previous plan and change

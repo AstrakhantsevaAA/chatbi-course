@@ -22,7 +22,7 @@ MAX_ROWS_SHOWN = 20
 PLAN_SCHEMA = {
     "type": "object",
     "properties": {
-        "status": {"type": "string", "enum": ["answer", "clarify", "out_of_scope"]},
+        "status": {"type": "string", "enum": ["answer", "clarify", "out_of_scope", "write_request"]},
         "clarifying_question": {"type": "string"},
         "concepts": {"type": "array", "items": {"type": "string"}},
         "metrics": {"type": "array", "items": {"type": "string"}},
@@ -49,6 +49,7 @@ You write a plan and one DuckDB SQL query over the CDM below. Rules:
   Followed playlists have no tracks in the data.
 - Plays exist only since the first load (Spotify keeps 50); say so in assumptions when
   the question uses plays.
+- status write_request when the user asks to change data (delete, update, insert; no SQL);
 - status out_of_scope when nothing in the data relates to the question (no SQL);
   status clarify when two readings give different numbers (one short question, no SQL).
 - A follow-up question changes only what the user changed; keep earlier filters.
@@ -133,6 +134,8 @@ def ask(question: str, turns: list[Turn], client: Any = None, runner: Any = run_
         return Turn(question, "out_of_scope",
                     "That is outside my data: I only know your Spotify library, playlists, "
                     "plays, and top lists.")
+    if p["status"] == "write_request":
+        return Turn(question, "rejected", "I only read your data. I can't change or delete anything.")
     if p["status"] == "clarify":
         return Turn(question, "clarified", p["clarifying_question"])
     reasons = gate_reasons(p, cdm)

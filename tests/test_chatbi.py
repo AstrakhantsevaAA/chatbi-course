@@ -60,6 +60,12 @@ class ChatbiTest(unittest.TestCase):
         self.assertEqual(turn.status, "rejected")
         self.assertIn("read-only", turn.answer)
 
+    def test_write_request_is_refused_without_sql(self) -> None:
+        client = StubClient([plan_json("", status="write_request", metrics=())])
+        turn = chatbi.ask("delete my old plays", [], client, runner)
+        self.assertEqual(turn.status, "rejected")
+        self.assertEqual(len(client.requests), 1)
+
     def test_out_of_scope_runs_no_sql(self) -> None:
         client = StubClient([plan_json("", status="out_of_scope", metrics=())])
         turn = chatbi.ask("What's the weather in Berlin?", [], client, runner)
